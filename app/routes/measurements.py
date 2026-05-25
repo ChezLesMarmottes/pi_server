@@ -8,8 +8,8 @@ from app.database import get_connection
 
 measurements_router = APIRouter()
 
-@app.post("/measurements")
-def post_measurement(measurement_in: MeasurementIn):
+@measurements_router.post("/measurements")
+def post_measurements(measurement_in: MeasurementIn):
     connection, cursor = get_connection()
 
     #Log 1
@@ -40,7 +40,7 @@ def post_measurement(measurement_in: MeasurementIn):
 
     return result
 
-@app.get("/measurements")
+@measurements_router.get("/measurements")
 def get_measurements(name: str | None = None, limit: int = 20):
     connection, cursor = get_connection()
 
@@ -64,7 +64,7 @@ def get_measurements(name: str | None = None, limit: int = 20):
 
     return result
 
-@app.get("/measurements/latest")
+@measurements_router.get("/measurements/latest")
 def get_measurements_latest():
     connection, cursor = get_connection()
 

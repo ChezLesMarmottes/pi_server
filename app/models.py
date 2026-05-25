@@ -22,11 +22,11 @@ class MeasurementOut(BaseModel):
     unit: Optional[str] = None
     timestamp: str
 
-class DevicesIn(BaseModel):
+class DeviceIn(BaseModel):
     name: str = Field(min_length=1)
     state: str = Field(min_length=1)
 
-class DevicesOut(BaseModel):
+class DeviceOut(BaseModel):
     id: int
     name: str
     state: str

@@ -1,10 +1,5 @@
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, APIRouter
 import sqlite3
 
-from app.models import *
-from app.routes.measurements import measurements_router
-from app.routes.devices import devices_router
 
 def get_connection():
     #Define connection and cursor
