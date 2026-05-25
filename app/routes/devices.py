@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
-from fastapi import FastAPI, APIRouter
-import sqlite3
+from fastapi import APIRouter, HTTPException
 
 from app.models import DeviceIn, DeviceOut
 from app.main import app
@@ -8,7 +7,7 @@ from app.database import get_connection
 
 devices_router = APIRouter()
 
-@devices_router.post("/devices")
+@devices_router.post("")
 def post_devices(device_in: DeviceIn):
     connection, cursor = get_connection()
 
@@ -40,7 +39,7 @@ def post_devices(device_in: DeviceIn):
 
     return result
 
-@devices_router.get("/devices")
+@devices_router.get("")
 def get_devices(name: str | None = None, limit: int = 20):
     connection, cursor = get_connection()
 
@@ -58,31 +57,37 @@ def get_devices(name: str | None = None, limit: int = 20):
     values.append(limit)
 
     cursor.execute(query, values)
-    result = [DeviceOut(**row) for row in cursor.fetchall()]
+    result = {"status": "ok", "data": [DeviceOut(**row) for row in cursor.fetchall()]}
 
     connection.close()
 
     return result
 
-@devices_router.get("/devices/{name}")
+@devices_router.get("/{name}")
 def get_devices_name(name: str):
     connection, cursor = get_connection()
 
     cursor.execute("SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1", (name,))
 
-    result = {"status": "ok", "device": [DeviceOut(**row) for row in cursor.fetchall()]}
+    result = {"status": "ok", "device": DeviceOut(**cursor.fetchone())}
+    if not result:
+        raise HTTPException(404, detail="Device not found")
 
     connection.close()
 
     return result
 
-@devices_router.post("/devices/{name}/state")
+@devices_router.post("/{name}/state")
 def post_devices_name_state(name: str, state: str):
     connection, cursor = get_connection()
 
-    cursor.execute("SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1", (name,))
+    cursor.execute("UPDATE devices SET state=? WHERE name=?", (state, name))
+    if cursor.rowcount == 0:
+        raise HTTPException(404, detail="Device not found")
+    
+    cursor.execute("SELECT * FROM devices WHERE name=?", (name,))
 
-    result = {"status": "ok", "message": "state updated", "device": [DeviceOut(**row) for row in cursor.fetchall()]}
+    result = {"status": "ok", "message": "state updated", "device": DeviceOut(**cursor.fetchone())}
 
     connection.close()
 

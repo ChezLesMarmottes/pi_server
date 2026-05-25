@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
-from fastapi import FastAPI, APIRouter
-import sqlite3
+from fastapi import APIRouter
 
 from app.models import MeasurementIn, MeasurementOut
 from app.main import app
@@ -8,7 +7,7 @@ from app.database import get_connection
 
 measurements_router = APIRouter()
 
-@measurements_router.post("/measurements")
+@measurements_router.post("")
 def post_measurements(measurement_in: MeasurementIn):
     connection, cursor = get_connection()
 
@@ -40,7 +39,7 @@ def post_measurements(measurement_in: MeasurementIn):
 
     return result
 
-@measurements_router.get("/measurements")
+@measurements_router.get("")
 def get_measurements(name: str | None = None, limit: int = 20):
     connection, cursor = get_connection()
 
@@ -64,7 +63,7 @@ def get_measurements(name: str | None = None, limit: int = 20):
 
     return result
 
-@measurements_router.get("/measurements/latest")
+@measurements_router.get("/latest")
 def get_measurements_latest():
     connection, cursor = get_connection()
 
