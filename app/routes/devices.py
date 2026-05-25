@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 
 from app.models import DeviceIn, DeviceOut
-from app.main import app
 from app.database import get_connection
 
 devices_router = APIRouter()

@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from fastapi import APIRouter
 
 from app.models import MeasurementIn, MeasurementOut
-from app.main import app
 from app.database import get_connection
 
 measurements_router = APIRouter()
