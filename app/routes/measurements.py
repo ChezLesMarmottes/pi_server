@@ -1,14 +1,14 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.models import MeasurementIn, MeasurementOut
-from app.database import get_connection
+from app.database import connection_dependency
 
 measurements_router = APIRouter()
 
 @measurements_router.post("")
-def post_measurements(measurement_in: MeasurementIn):
-    connection, cursor = get_connection()
+def post_measurements(db: connection_dependency, measurement_in: MeasurementIn):
+    connection, cursor = db
 
     #Log 1
     print(f"IN: {measurement_in}")
@@ -33,14 +33,14 @@ def post_measurements(measurement_in: MeasurementIn):
     cursor.execute("SELECT * FROM measurements WHERE id=?", (cursor.lastrowid,))
 
     result = {"status": "ok", "message": "measurement stored", "id": cursor.lastrowid}
-
-    connection.close()
+    if not result:
+        raise HTTPException(404, detail="Device not found")
 
     return result
 
 @measurements_router.get("")
-def get_measurements(name: str | None = None, limit: int = 20):
-    connection, cursor = get_connection()
+def get_measurements(db: connection_dependency, name: str | None = None, limit: int = 20):
+    connection, cursor = db
 
     conditions = []
     values = []
@@ -56,20 +56,20 @@ def get_measurements(name: str | None = None, limit: int = 20):
     values.append(limit)
 
     cursor.execute(query, values)
-    result = [MeasurementOut(**row) for row in cursor.fetchall()]
-
-    connection.close()
+    result = {"status": "ok", "data": [MeasurementOut(**row) for row in cursor.fetchall()]}
+    if not result:
+        raise HTTPException(404, detail="Device not found")
 
     return result
 
 @measurements_router.get("/latest")
-def get_measurements_latest():
-    connection, cursor = get_connection()
+def get_measurements_latest(db: connection_dependency):
+    connection, cursor = db
 
     cursor.execute("SELECT * FROM measurements WHERE id IN (SELECT MAX(id) FROM measurements GROUP BY name) ORDER BY id DESC")
 
     result = {"status": "ok", "data": [MeasurementOut(**row) for row in cursor.fetchall()]}
-
-    connection.close()
+    if not result:
+        raise HTTPException(404, detail="Device not found")
 
     return result

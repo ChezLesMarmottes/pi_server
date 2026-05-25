@@ -9,7 +9,6 @@ from app.routes.health import health_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    #Before application starts
     connection = sqlite3.connect("data/platform.db")
     cursor = connection.cursor()
 
@@ -34,7 +33,6 @@ async def lifespan(app: FastAPI):
     connection.commit()
     connection.close()
     yield
-    #After application finishes
 
 app = FastAPI(lifespan=lifespan)
 

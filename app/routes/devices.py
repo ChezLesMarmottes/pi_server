@@ -2,13 +2,13 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 
 from app.models import DeviceIn, DeviceOut
-from app.database import get_connection
+from app.database import connection_dependency
 
 devices_router = APIRouter()
 
 @devices_router.post("")
-def post_devices(device_in: DeviceIn):
-    connection, cursor = get_connection()
+def post_devices(db: connection_dependency, device_in: DeviceIn):
+    connection, cursor = db
 
     #Log 1
     print(f"IN: {device_in}")
@@ -33,14 +33,14 @@ def post_devices(device_in: DeviceIn):
     cursor.execute("SELECT * FROM devices WHERE id=?", (cursor.lastrowid,))
 
     result = {"status": "ok", "message": "device created", "id": cursor.lastrowid}
-
-    connection.close()
+    if not result:
+        raise HTTPException(404, detail="Device not found")
 
     return result
 
 @devices_router.get("")
-def get_devices(name: str | None = None, limit: int = 20):
-    connection, cursor = get_connection()
+def get_devices(db: connection_dependency, name: str | None = None, limit: int = 20):
+    connection, cursor = db
 
     conditions = []
     values = []
@@ -57,14 +57,14 @@ def get_devices(name: str | None = None, limit: int = 20):
 
     cursor.execute(query, values)
     result = {"status": "ok", "data": [DeviceOut(**row) for row in cursor.fetchall()]}
-
-    connection.close()
+    if not result:
+        raise HTTPException(404, detail="Device not found")
 
     return result
 
 @devices_router.get("/{name}")
-def get_devices_name(name: str):
-    connection, cursor = get_connection()
+def get_devices_name(db: connection_dependency, name: str):
+    connection, cursor = db
 
     cursor.execute("SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1", (name,))
 
@@ -72,13 +72,11 @@ def get_devices_name(name: str):
     if not result:
         raise HTTPException(404, detail="Device not found")
 
-    connection.close()
-
     return result
 
 @devices_router.post("/{name}/state")
-def post_devices_name_state(name: str, state: str):
-    connection, cursor = get_connection()
+def post_devices_name_state(db: connection_dependency, name: str, state: str):
+    connection, cursor = db
 
     cursor.execute("UPDATE devices SET state=? WHERE name=?", (state, name))
     if cursor.rowcount == 0:
@@ -87,7 +85,5 @@ def post_devices_name_state(name: str, state: str):
     cursor.execute("SELECT * FROM devices WHERE name=?", (name,))
 
     result = {"status": "ok", "message": "state updated", "device": DeviceOut(**cursor.fetchone())}
-
-    connection.close()
 
     return result
