@@ -81,6 +81,7 @@ def post_devices_name_state(db: connection_dependency, name: str, state: str):
     cursor.execute("UPDATE devices SET state=? WHERE name=?", (state, name))
     if cursor.rowcount == 0:
         raise HTTPException(404, detail="Device not found")
+    connection.commit()
     
     cursor.execute("SELECT * FROM devices WHERE name=?", (name,))
 

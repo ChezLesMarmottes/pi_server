@@ -4,7 +4,7 @@ from fastapi import Depends
 
 def get_connection():
     #Define connection and cursor
-    connection = sqlite3.connect("platform.db")
+    connection = sqlite3.connect("data/platform.db")
     connection.row_factory = sqlite3.Row
     cursor = connection.cursor()
 
