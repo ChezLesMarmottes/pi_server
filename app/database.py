@@ -14,4 +14,4 @@ def get_connection():
     finally:
         connection.close()
 
-connection_dependency = Annotated[tuple, Depends(get_connection)]
+connection_dependency = Annotated[tuple[sqlite3.Connection, sqlite3.Cursor], Depends(get_connection)]

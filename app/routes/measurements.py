@@ -13,7 +13,7 @@ def post_measurements(db: connection_dependency, measurement_in: MeasurementIn):
     #Log 1
     print(f"IN: {measurement_in}")
 
-    record = {}
+    record: dict[str, str | int | float] = {}
 
     record.update(measurement_in.model_dump())
     record["timestamp"] = datetime.now(timezone.utc).isoformat()
@@ -25,16 +25,21 @@ def post_measurements(db: connection_dependency, measurement_in: MeasurementIn):
     query = f"INSERT INTO measurements ({columns}) VALUES ({placeholders});"
 
     cursor.execute(query, values)
+    if cursor.rowcount == 0:
+        raise HTTPException(404, detail="Measurement not found")
+    
     connection.commit()
 
     #Log 2
     print(f"OUT: {record}")
 
     cursor.execute("SELECT * FROM measurements WHERE id=?", (cursor.lastrowid,))
+    if cursor.rowcount != -1:
+        raise HTTPException(404, detail="Measurement not found")
+    
+    connection.commit()
 
-    result = {"status": "ok", "message": "measurement stored", "id": cursor.lastrowid}
-    if not result:
-        raise HTTPException(404, detail="Device not found")
+    result: dict[str, str | int | None] = {"status": "ok", "message": "measurement stored", "id": cursor.lastrowid}
 
     return result
 
@@ -42,8 +47,11 @@ def post_measurements(db: connection_dependency, measurement_in: MeasurementIn):
 def get_measurements(db: connection_dependency, name: str | None = None, limit: int = 20):
     connection, cursor = db
 
-    conditions = []
-    values = []
+    if limit >= 100:
+        raise HTTPException(400, detail="Limit must be under 100")
+
+    conditions: list[str] = []
+    values: list [str | int] = []
 
     if name:
         conditions.append("name=?")
@@ -56,9 +64,12 @@ def get_measurements(db: connection_dependency, name: str | None = None, limit: 
     values.append(limit)
 
     cursor.execute(query, values)
-    result = {"status": "ok", "data": [MeasurementOut(**row) for row in cursor.fetchall()]}
-    if not result:
-        raise HTTPException(404, detail="Device not found")
+    if cursor.rowcount != -1:
+        raise HTTPException(404, detail="Measurement not found")
+    
+    connection.commit()
+    
+    result: dict[str, str | list[MeasurementOut]] = {"status": "ok", "data": [MeasurementOut(**row) for row in cursor.fetchall()]}
 
     return result
 
@@ -67,9 +78,11 @@ def get_measurements_latest(db: connection_dependency):
     connection, cursor = db
 
     cursor.execute("SELECT * FROM measurements WHERE id IN (SELECT MAX(id) FROM measurements GROUP BY name) ORDER BY id DESC")
+    if cursor.rowcount != -1:
+        raise HTTPException(404, detail="Measurement not found")
+    
+    connection.commit()
 
-    result = {"status": "ok", "data": [MeasurementOut(**row) for row in cursor.fetchall()]}
-    if not result:
-        raise HTTPException(404, detail="Device not found")
+    result: dict[str, str | list[MeasurementOut]] = {"status": "ok", "data": [MeasurementOut(**row) for row in cursor.fetchall()]}
 
     return result

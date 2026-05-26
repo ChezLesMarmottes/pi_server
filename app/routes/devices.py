@@ -13,7 +13,7 @@ def post_devices(db: connection_dependency, device_in: DeviceIn):
     #Log 1
     print(f"IN: {device_in}")
 
-    record = {}
+    record: dict[str, str | int | float] = {}
 
     record.update(device_in.model_dump())
     record["timestamp"] = datetime.now(timezone.utc).isoformat()
@@ -25,16 +25,21 @@ def post_devices(db: connection_dependency, device_in: DeviceIn):
     query = f"INSERT INTO devices ({columns}) VALUES ({placeholders});"
 
     cursor.execute(query, values)
+    if cursor.rowcount == 0:
+        raise HTTPException(404, detail="Device not found")
+    
     connection.commit()
 
     #Log 2
     print(f"OUT: {record}")
 
     cursor.execute("SELECT * FROM devices WHERE id=?", (cursor.lastrowid,))
-
-    result = {"status": "ok", "message": "device created", "id": cursor.lastrowid}
-    if not result:
+    if cursor.rowcount != -1:
         raise HTTPException(404, detail="Device not found")
+    
+    connection.commit()
+
+    result: dict[str, str | int | None] = {"status": "ok", "message": "device created", "id": cursor.lastrowid}
 
     return result
 
@@ -42,8 +47,11 @@ def post_devices(db: connection_dependency, device_in: DeviceIn):
 def get_devices(db: connection_dependency, name: str | None = None, limit: int = 20):
     connection, cursor = db
 
-    conditions = []
-    values = []
+    if limit >= 100:
+        raise HTTPException(400, detail="Limit must be under 100")
+
+    conditions: list[str] = []
+    values: list[str | int] = []
 
     if name:
         conditions.append("name=?")
@@ -56,9 +64,12 @@ def get_devices(db: connection_dependency, name: str | None = None, limit: int =
     values.append(limit)
 
     cursor.execute(query, values)
-    result = {"status": "ok", "data": [DeviceOut(**row) for row in cursor.fetchall()]}
-    if not result:
+    if cursor.rowcount != -1:
         raise HTTPException(404, detail="Device not found")
+    
+    connection.commit()
+    
+    result: dict[str, str | list[DeviceOut]] = {"status": "ok", "data": [DeviceOut(**row) for row in cursor.fetchall()]}
 
     return result
 
@@ -67,10 +78,12 @@ def get_devices_name(db: connection_dependency, name: str):
     connection, cursor = db
 
     cursor.execute("SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1", (name,))
-
-    result = {"status": "ok", "device": DeviceOut(**cursor.fetchone())}
-    if not result:
+    if cursor.rowcount != -1:
         raise HTTPException(404, detail="Device not found")
+    
+    connection.commit()
+
+    result: dict[str, str | DeviceOut] = {"status": "ok", "device": DeviceOut(**cursor.fetchone())}
 
     return result
 
@@ -78,13 +91,23 @@ def get_devices_name(db: connection_dependency, name: str):
 def post_devices_name_state(db: connection_dependency, name: str, state: str):
     connection, cursor = db
 
+    state = state.upper()
+
+    if state not in ("ON", "OFF", "ARMED", "READING", "READY"):
+        raise HTTPException(400, detail="State not in allowed states")
+
     cursor.execute("UPDATE devices SET state=? WHERE name=?", (state, name))
     if cursor.rowcount == 0:
         raise HTTPException(404, detail="Device not found")
+    
     connection.commit()
     
     cursor.execute("SELECT * FROM devices WHERE name=?", (name,))
+    if cursor.rowcount != -1:
+        raise HTTPException(404, detail="Device not found")
+    
+    connection.commit()
 
-    result = {"status": "ok", "message": "state updated", "device": DeviceOut(**cursor.fetchone())}
+    result: dict[str, str | DeviceOut] = {"status": "ok", "message": "state updated", "device": DeviceOut(**cursor.fetchone())}
 
     return result

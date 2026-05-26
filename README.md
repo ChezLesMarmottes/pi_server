@@ -76,69 +76,241 @@ The database and tables are created during application startup.
 
 ## API endpoints
 
+All endpoints return JSON. Responses follow a simple envelope style with a `status` field and, depending on the endpoint, either `message`, `id`, `data`, or `device`.
+
 ### Health
 
 #### `GET /health`
 
-Returns a simple health check response.
+Health check endpoint used to confirm that the API is running.
 
 **Response**
 
 ```json
-{ "status": "ok" }
+{
+  "status": "ok"
+}
 ```
+
+---
 
 ### Measurements
 
+#### `POST /measurements`
+
+Stores a new measurement in the `measurements` table.
+
+**Request body**
+
+* JSON object matching `MeasurementIn`
+* The exact fields are defined in `app/models.py`
+* The server automatically adds a UTC ISO-8601 `timestamp`
+
+**Behavior**
+
+* Logs the incoming model to stdout
+* Inserts the measurement into SQLite
+* Commits the transaction
+* Returns the newly inserted row id
+
+**Response**
+
+```json
+{
+  "status": "ok",
+  "message": "measurement stored",
+  "id": 1
+}
+```
+
 #### `GET /measurements`
 
-Returns measurements from the database.
+Returns a list of measurements, newest first.
 
-Query parameters:
+**Query parameters**
 
-* `name` (optional): filter measurements by name
-* `limit` (optional, default: `20`): maximum number of results returned
+* `name` (optional): filters results by measurement name
+* `limit` (optional, default: `20`): maximum number of rows returned
 
-Example:
+**Examples**
 
 ```text
+GET /measurements
+GET /measurements?name=temperature
 GET /measurements?name=temperature&limit=10
 ```
 
-#### `POST /measurements`
+**Response**
 
-Creates a new measurement entry.
-
-This endpoint accepts a measurement input model (`MeasurementIn`) and stores it in the database.
+```json
+{
+  "status": "ok",
+  "data": [
+    {
+      "id": 12,
+      "source": "arduino_1",
+      "name": "temperature",
+      "value": 21.6,
+      "unit": "C",
+      "timestamp": "2026-05-26T18:12:34.123456+00:00"
+    }
+  ]
+}
+```
 
 #### `GET /measurements/latest`
 
-Returns the most recent measurement entry.
+Returns the latest measurement for each measurement name.
+
+This endpoint is useful when you want the current/latest state for all measurement types without requesting the full history.
+
+**Response**
+
+```json
+{
+  "status": "ok",
+  "data": [
+    {
+      "id": 12,
+      "source": "arduino_1",
+      "name": "temperature",
+      "value": 21.6,
+      "unit": "C",
+      "timestamp": "2026-05-26T18:12:34.123456+00:00"
+    }
+  ]
+}
+```
+
+---
 
 ### Devices
 
-#### `GET /devices`
-
-Returns all devices.
-
 #### `POST /devices`
 
-Creates a new device entry.
+Creates a new device entry in the `devices` table.
 
-This endpoint accepts a device input model (`DeviceIn`) and stores it in the database.
+**Request body**
+
+* JSON object matching `DeviceIn`
+* The exact fields are defined in `app/models.py`
+* The server automatically adds a UTC ISO-8601 `timestamp`
+
+**Behavior**
+
+* Logs the incoming model to stdout
+* Inserts the device into SQLite
+* Commits the transaction
+* Returns the newly inserted row id
+
+**Response**
+
+```json
+{
+  "status": "ok",
+  "message": "device created",
+  "id": 1
+}
+```
+
+#### `GET /devices`
+
+Returns a list of devices, newest first.
+
+**Query parameters**
+
+* `name` (optional): filters results by device name
+* `limit` (optional, default: `20`): maximum number of rows returned
+
+**Examples**
+
+```text
+GET /devices
+GET /devices?name=pump
+GET /devices?name=pump&limit=5
+```
+
+**Response**
+
+```json
+{
+  "status": "ok",
+  "data": [
+    {
+      "id": 1,
+      "name": "pump",
+      "state": "off",
+      "timestamp": "2026-05-26T18:12:34.123456+00:00"
+    }
+  ]
+}
+```
 
 #### `GET /devices/{name}`
 
-Returns a single device by name.
+Returns the most recent record for a single device by name.
+
+**Path parameters**
+
+* `name`: device name
+
+**Example**
+
+```text
+GET /devices/pump
+```
+
+**Response**
+
+```json
+{
+  "status": "ok",
+  "device": {
+    "id": 1,
+    "name": "pump",
+    "state": "off",
+    "timestamp": "2026-05-26T18:12:34.123456+00:00"
+  }
+}
+```
 
 #### `POST /devices/{name}/state`
 
-Updates the state of the device with the given name.
+Updates the `state` of an existing device.
 
-Example:
+**Path parameters**
+
+* `name`: device name
+
+**Query parameters**
+
+* `state`: new device state
+
+**Example**
 
 ```text
 POST /devices/pump/state?state=on
+```
+
+**Behavior**
+
+* Updates the matching device row by name
+* Returns `404` if no device matches
+* Commits the transaction so later GET requests see the new state
+
+**Response**
+
+```json
+{
+  "status": "ok",
+  "message": "state updated",
+  "device": {
+    "id": 1,
+    "name": "pump",
+    "state": "on",
+    "timestamp": "2026-05-26T18:12:34.123456+00:00"
+  }
+}
 ```
 
 ## Data models
