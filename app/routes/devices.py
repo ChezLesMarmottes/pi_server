@@ -1,12 +1,12 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 
-from app.models import DeviceIn, DeviceOut
+from app.models import ApiResponse, DeviceIn, DeviceOut, DeviceState, CreateData
 from app.database import connection_dependency
 
 devices_router = APIRouter()
 
-@devices_router.post("")
+@devices_router.post("", response_model=ApiResponse[CreateData])
 def post_devices(db: connection_dependency, device_in: DeviceIn):
     connection, cursor = db
 
@@ -25,30 +25,24 @@ def post_devices(db: connection_dependency, device_in: DeviceIn):
     query = f"INSERT INTO devices ({columns}) VALUES ({placeholders});"
 
     cursor.execute(query, values)
-    if cursor.rowcount == 0:
-        raise HTTPException(404, detail="Device not found")
+    if cursor.lastrowid is None:
+        raise HTTPException(500, detail="Insert failed")
     
     connection.commit()
 
     #Log 2
     print(f"OUT: {record}")
 
-    cursor.execute("SELECT * FROM devices WHERE id=?", (cursor.lastrowid,))
-    if cursor.rowcount != -1:
-        raise HTTPException(404, detail="Device not found")
-    
-    connection.commit()
-
-    result: dict[str, str | int | None] = {"status": "ok", "message": "device created", "id": cursor.lastrowid}
+    result = {"message": "device created", "data": {"id": cursor.lastrowid}}
 
     return result
 
-@devices_router.get("")
+@devices_router.get("", response_model=ApiResponse[list[DeviceOut]])
 def get_devices(db: connection_dependency, name: str | None = None, limit: int = 20):
-    connection, cursor = db
+    _, cursor = db
 
-    if limit >= 100:
-        raise HTTPException(400, detail="Limit must be under 100")
+    if not (1 <= limit < 100):
+        raise HTTPException(400, detail="Limit must be between 1 and 99")
 
     conditions: list[str] = []
     values: list[str | int] = []
@@ -64,50 +58,42 @@ def get_devices(db: connection_dependency, name: str | None = None, limit: int =
     values.append(limit)
 
     cursor.execute(query, values)
-    if cursor.rowcount != -1:
-        raise HTTPException(404, detail="Device not found")
-    
-    connection.commit()
-    
-    result: dict[str, str | list[DeviceOut]] = {"status": "ok", "data": [DeviceOut(**row) for row in cursor.fetchall()]}
+
+    result = {"data": [DeviceOut(**row) for row in cursor.fetchall()]}
 
     return result
 
-@devices_router.get("/{name}")
+@devices_router.get("/{name}", response_model=ApiResponse[DeviceOut])
 def get_devices_name(db: connection_dependency, name: str):
-    connection, cursor = db
+    _, cursor = db
 
     cursor.execute("SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1", (name,))
-    if cursor.rowcount != -1:
-        raise HTTPException(404, detail="Device not found")
-    
-    connection.commit()
 
-    result: dict[str, str | DeviceOut] = {"status": "ok", "device": DeviceOut(**cursor.fetchone())}
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(404, detail="Device not found")
+
+    result = {"data": DeviceOut(**row)}
 
     return result
 
-@devices_router.post("/{name}/state")
+@devices_router.post("/{name}/state", response_model=ApiResponse[DeviceOut])
 def post_devices_name_state(db: connection_dependency, name: str, state: str):
     connection, cursor = db
 
-    state = state.upper()
+    try:
+        state = DeviceState(state.upper())
+    except ValueError:
+        raise HTTPException(400, detail="Invalid state")
 
-    if state not in ("ON", "OFF", "ARMED", "READING", "READY"):
-        raise HTTPException(400, detail="State not in allowed states")
+    cursor.execute("UPDATE devices SET state=? WHERE name=? RETURNING *", (state, name))
 
-    cursor.execute("UPDATE devices SET state=? WHERE name=?", (state, name))
-    if cursor.rowcount == 0:
-        raise HTTPException(404, detail="Device not found")
-    
-    connection.commit()
-    
-    cursor.execute("SELECT * FROM devices WHERE name=?", (name,))
-    if cursor.rowcount != -1:
+    row = cursor.fetchone()
+    if not row:
         raise HTTPException(404, detail="Device not found")
     
     connection.commit()
 
-    result: dict[str, str | DeviceOut] = {"status": "ok", "message": "state updated", "device": DeviceOut(**cursor.fetchone())}
+    result = {"message": "state updated", "data": DeviceOut(**row)}
 
     return result
