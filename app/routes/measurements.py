@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 
 from app.models import ApiResponse, MeasurementIn, MeasurementOut, CreateData
 from app.database import connection_dependency
+from app.crud import build_record, insert_record, fetch_all, build_filters
 
 measurements_router = APIRouter()
 
@@ -10,30 +10,12 @@ measurements_router = APIRouter()
 def post_measurements(db: connection_dependency, measurement_in: MeasurementIn):
     connection, cursor = db
 
-    #Log 1
-    print(f"IN: {measurement_in}")
+    record = build_record(measurement_in)
 
-    record: dict[str, str | int | float] = {}
-
-    record.update(measurement_in.model_dump())
-    record["timestamp"] = datetime.now(timezone.utc).isoformat()
-
-    columns = ", ".join(record.keys())
-    placeholders = ", ".join(["?"] * len(record))
-    values = tuple(record.values())
-
-    query = f"INSERT INTO measurements ({columns}) VALUES ({placeholders});"
-
-    cursor.execute(query, values)
-    if cursor.lastrowid is None:
-        raise HTTPException(404, detail="Measurement not found")
-    
+    measurement_id = insert_record(cursor, "measurements", record)
     connection.commit()
 
-    #Log 2
-    print(f"OUT: {record}")
-
-    result = {"message": "measurement stored", "data": {"id": cursor.lastrowid}}
+    result = {"message": "measurement stored", "data": {"id": measurement_id}}
 
     return result
 
@@ -44,22 +26,17 @@ def get_measurements(db: connection_dependency, name: str | None = None, limit: 
     if not (1 <= limit < 100):
         raise HTTPException(400, detail="Limit must be between 1 and 99")
 
-    conditions: list[str] = []
-    values: list [str | int] = []
-
-    if name:
-        conditions.append("name=?")
-        values.append(name)
+    conditions_sql, values = build_filters(name=name)
     
     query = "SELECT * FROM measurements " 
-    if conditions:
-        query += "WHERE " + " AND ".join(conditions)
+    if conditions_sql:
+        query += conditions_sql
     query += " ORDER BY id DESC LIMIT ?"
     values.append(limit)
 
-    cursor.execute(query, values)
+    measurement_list = fetch_all(cursor, query, tuple(values), MeasurementOut)
     
-    result = {"data": [MeasurementOut(**row) for row in cursor.fetchall()]}
+    result = {"data": measurement_list}
 
     return result
 
@@ -68,10 +45,7 @@ def get_measurements_latest(db: connection_dependency):
     _, cursor = db
 
     cursor.execute("SELECT * FROM measurements WHERE id IN (SELECT MAX(id) FROM measurements GROUP BY name) ORDER BY id DESC")
-    rows = cursor.fetchall()
-    if not rows:
-        raise HTTPException(404, detail="Device not found")
 
-    result = {"data": [MeasurementOut(**row) for row in rows]}
+    result = {"data": [MeasurementOut(**row) for row in cursor.fetchall()]}
 
     return result

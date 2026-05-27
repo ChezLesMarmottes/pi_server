@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 
 from app.models import ApiResponse, DeviceIn, DeviceOut, DeviceState, CreateData
 from app.database import connection_dependency
+from app.crud import build_filters, build_record, fetch_all, insert_record
 
 devices_router = APIRouter()
 
@@ -10,30 +10,12 @@ devices_router = APIRouter()
 def post_devices(db: connection_dependency, device_in: DeviceIn):
     connection, cursor = db
 
-    #Log 1
-    print(f"IN: {device_in}")
+    record = build_record(device_in)
 
-    record: dict[str, str | int | float] = {}
-
-    record.update(device_in.model_dump())
-    record["timestamp"] = datetime.now(timezone.utc).isoformat()
-
-    columns = ", ".join(record.keys())
-    placeholders = ", ".join(["?"] * len(record))
-    values = tuple(record.values())
-
-    query = f"INSERT INTO devices ({columns}) VALUES ({placeholders});"
-
-    cursor.execute(query, values)
-    if cursor.lastrowid is None:
-        raise HTTPException(500, detail="Insert failed")
-    
+    device_id = insert_record(cursor, "devices", record)
     connection.commit()
 
-    #Log 2
-    print(f"OUT: {record}")
-
-    result = {"message": "device created", "data": {"id": cursor.lastrowid}}
+    result = {"message": "device created", "data": {"id": device_id}}
 
     return result
 
@@ -44,22 +26,17 @@ def get_devices(db: connection_dependency, name: str | None = None, limit: int =
     if not (1 <= limit < 100):
         raise HTTPException(400, detail="Limit must be between 1 and 99")
 
-    conditions: list[str] = []
-    values: list[str | int] = []
-
-    if name:
-        conditions.append("name=?")
-        values.append(name)
+    conditions_sql, values = build_filters(name=name)
     
     query = "SELECT * FROM devices " 
-    if conditions:
-        query += "WHERE " + " AND ".join(conditions)
+    if conditions_sql:
+        query += conditions_sql
     query += " ORDER BY id DESC LIMIT ?"
     values.append(limit)
 
-    cursor.execute(query, values)
+    device_list = fetch_all(cursor, query, tuple(values), DeviceOut)
 
-    result = {"data": [DeviceOut(**row) for row in cursor.fetchall()]}
+    result = {"data": device_list}
 
     return result
 
