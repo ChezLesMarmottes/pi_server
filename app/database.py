@@ -1,17 +1,15 @@
-import sqlite3
 from typing import Annotated
 from fastapi import Depends
 
+from app.models import Database
+
 def get_connection():
-    #Define connection and cursor
-    connection = sqlite3.connect("data/platform.db")
-    connection.row_factory = sqlite3.Row
-    cursor = connection.cursor()
+    db = Database()
 
     try:
-        yield connection, cursor
+        yield db
         
     finally:
-        connection.close()
+        db.connection.close()
 
-connection_dependency = Annotated[tuple[sqlite3.Connection, sqlite3.Cursor], Depends(get_connection)]
+connection_dependency = Annotated[Database, Depends(get_connection)]

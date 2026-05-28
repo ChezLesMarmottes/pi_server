@@ -1,6 +1,8 @@
 from enum import Enum
+from inspect import _void
+import sqlite3
 from pydantic import BaseModel, Field, field_validator
-from typing import Generic, Optional, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 import math
 
 T = TypeVar("T")
@@ -48,3 +50,28 @@ class DeviceState(str, Enum):
 
 class CreateData(BaseModel):
     id: int
+    
+class Database:
+    def __init__(self):
+        self.connection = sqlite3.connect("data/platform.db")
+        self.connection.row_factory = sqlite3.Row
+
+    def execute(self, query: str, values: tuple | None = None) -> sqlite3.Cursor:
+        cursor = self.connection.cursor()
+        if values is not None:
+            cursor.execute(query, values)
+        else:
+            cursor.execute(query)
+        return cursor
+
+    def fetch_all(self, query: str, values: tuple | None = None) -> list[dict[Any, Any]]:
+        cursor = self.execute(query, values)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def fetch_one(self, query: str, values: tuple | None = None) -> dict[Any, Any] | None:
+        cursor = self.execute(query, values)
+        result = cursor.fetchone()
+        return dict(result) if result is not None else result
+    
+    def commit(self) -> None:
+        self.connection.commit()

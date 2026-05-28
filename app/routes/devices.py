@@ -1,9 +1,9 @@
+from datetime import datetime, timezone
 import logging
 from fastapi import APIRouter, HTTPException
 
-from app.models import ApiResponse, DeviceIn, DeviceOut, DeviceState, CreateData
+from app.models import ApiResponse, DeviceIn, DeviceOut, DeviceState, CreateData, Database
 from app.database import connection_dependency
-from app.crud import build_filters, build_record, fetch_all, insert_record
 
 devices_router = APIRouter()
 
@@ -11,25 +11,51 @@ logger = logging.getLogger(__name__)
 
 @devices_router.post("", response_model=ApiResponse[CreateData])
 def post_devices(db: connection_dependency, device_in: DeviceIn):
-    connection, cursor = db
 
-    record = build_record(device_in)
+    record: dict[str, str | int | float] = {}
 
-    device_id = insert_record(cursor, "devices", record)
-    connection.commit()
+    record.update(device_in.model_dump())
+    record["timestamp"] = datetime.now(timezone.utc).isoformat()
 
-    result = {"message": "device created", "data": {"id": device_id}}
+    columns = ", ".join(record.keys())
+    placeholders = ", ".join(["?"] * len(record))
+    values = tuple(record.values())
+
+    query = f"INSERT INTO devices ({columns}) VALUES ({placeholders});"
+
+    try:
+        cursor = db.execute(query, tuple(values))
+    except Exception:
+        logger.exception("Failed query: Couldn't insert record into table")
+        raise
+    row_id = cursor.lastrowid
+
+    if row_id is None:
+        raise RuntimeError("Insert failed")
+    
+    db.commit()
+
+    result = {"message": "device created", "data": {"id": row_id}}
 
     return result
 
 @devices_router.get("", response_model=ApiResponse[list[DeviceOut]])
 def get_devices(db: connection_dependency, name: str | None = None, limit: int = 20):
-    _, cursor = db
 
     if not (1 <= limit < 100):
         raise HTTPException(400, detail="Limit must be between 1 and 99")
 
-    conditions_sql, values = build_filters(name=name)
+    conditions: list[str] = []
+    values: list[str | int] = []
+
+    if name is not None:
+        conditions.append("name=?")
+        values.append(name)
+    
+    if conditions:
+        conditions_sql = "WHERE " + " AND ".join(conditions)
+    else:
+        conditions_sql = ""
     
     query = "SELECT * FROM devices " 
     if conditions_sql:
@@ -37,23 +63,25 @@ def get_devices(db: connection_dependency, name: str | None = None, limit: int =
     query += " ORDER BY id DESC LIMIT ?"
     values.append(limit)
 
-    device_list = fetch_all(cursor, query, tuple(values), DeviceOut)
-
-    result = {"data": device_list}
+    try:
+        rows = db.fetch_all(query, tuple(values))
+    except Exception:
+        logger.exception("Failed query: Couldn't fetch all values from table")
+        raise
+    
+    result = {"data": [DeviceOut(**row) for row in rows]}
 
     return result
 
 @devices_router.get("/{name}", response_model=ApiResponse[DeviceOut])
 def get_devices_name(db: connection_dependency, name: str):
-    _, cursor = db
 
     try:
-        cursor.execute("SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1", (name,))
+        row = db.fetch_one("SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1", (name,))
     except Exception:
         logger.exception("Failed query: Couldn't select %s from table devices", name)
         raise
 
-    row = cursor.fetchone()
     if not row:
         raise HTTPException(404, detail="Device not found")
 
@@ -63,7 +91,6 @@ def get_devices_name(db: connection_dependency, name: str):
 
 @devices_router.post("/{name}/state", response_model=ApiResponse[DeviceOut])
 def post_devices_name_state(db: connection_dependency, name: str, state: str):
-    connection, cursor = db
 
     try:
         state = DeviceState(state.upper())
@@ -71,16 +98,15 @@ def post_devices_name_state(db: connection_dependency, name: str, state: str):
         raise HTTPException(400, detail="Invalid state")
 
     try:
-        cursor.execute("UPDATE devices SET state=? WHERE name=? RETURNING *", (state, name))
+        row = db.fetch_one("UPDATE devices SET state=? WHERE name=? RETURNING *", (state, name))
     except Exception:
         logger.exception("Failed query: Couldn't update state of %s", name)
         raise
 
-    row = cursor.fetchone()
     if not row:
         raise HTTPException(404, detail="Device not found")
     
-    connection.commit()
+    db.commit()
 
     result = {"message": "state updated", "data": DeviceOut(**row)}
 
