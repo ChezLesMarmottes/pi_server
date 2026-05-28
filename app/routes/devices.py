@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, HTTPException
 
 from app.models import ApiResponse, DeviceIn, DeviceOut, DeviceState, CreateData
@@ -5,6 +6,8 @@ from app.database import connection_dependency
 from app.crud import build_filters, build_record, fetch_all, insert_record
 
 devices_router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 @devices_router.post("", response_model=ApiResponse[CreateData])
 def post_devices(db: connection_dependency, device_in: DeviceIn):
@@ -44,7 +47,11 @@ def get_devices(db: connection_dependency, name: str | None = None, limit: int =
 def get_devices_name(db: connection_dependency, name: str):
     _, cursor = db
 
-    cursor.execute("SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1", (name,))
+    try:
+        cursor.execute("SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1", (name,))
+    except Exception:
+        logger.exception("Failed query: Couldn't select %s from table devices", name)
+        raise
 
     row = cursor.fetchone()
     if not row:
@@ -63,7 +70,11 @@ def post_devices_name_state(db: connection_dependency, name: str, state: str):
     except ValueError:
         raise HTTPException(400, detail="Invalid state")
 
-    cursor.execute("UPDATE devices SET state=? WHERE name=? RETURNING *", (state, name))
+    try:
+        cursor.execute("UPDATE devices SET state=? WHERE name=? RETURNING *", (state, name))
+    except Exception:
+        logger.exception("Failed query: Couldn't update state of %s", name)
+        raise
 
     row = cursor.fetchone()
     if not row:

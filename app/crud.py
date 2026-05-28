@@ -1,6 +1,9 @@
+import logging
 from datetime import datetime, timezone
 from typing import Type, TypeVar
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 def build_record(model: BaseModel) -> dict[str, str | int | float]:
     record: dict[str, str | int | float] = {}
@@ -16,7 +19,11 @@ def insert_record(cursor, table: str, record: dict[str, str | int | float]) -> i
 
     query = f"INSERT INTO {table} ({columns}) VALUES ({placeholders});"
 
-    cursor.execute(query, values)
+    try:
+        cursor.execute(query, values)
+    except Exception:
+        logger.exception("Failed query: Couldn't insert record into table")
+        raise
     row_id = cursor.lastrowid
 
     if row_id is None:
@@ -27,7 +34,11 @@ def insert_record(cursor, table: str, record: dict[str, str | int | float]) -> i
 T = TypeVar("T")
 def fetch_all(cursor, query: str, values: tuple, model: Type[T]) -> list[T]:
 
-    cursor.execute(query, values)
+    try:
+        cursor.execute(query, values)
+    except Exception:
+        logger.exception("Failed query: Couldn't fetch all values from table")
+        raise
     
     return [model(**row) for row in cursor.fetchall()]
 

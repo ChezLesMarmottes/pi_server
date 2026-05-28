@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, HTTPException
 
 from app.models import ApiResponse, MeasurementIn, MeasurementOut, CreateData
@@ -5,6 +6,8 @@ from app.database import connection_dependency
 from app.crud import build_record, insert_record, fetch_all, build_filters
 
 measurements_router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 @measurements_router.post("", response_model=ApiResponse[CreateData])
 def post_measurements(db: connection_dependency, measurement_in: MeasurementIn):
@@ -44,7 +47,11 @@ def get_measurements(db: connection_dependency, name: str | None = None, limit: 
 def get_measurements_latest(db: connection_dependency):
     _, cursor = db
 
-    cursor.execute("SELECT * FROM measurements WHERE id IN (SELECT MAX(id) FROM measurements GROUP BY name) ORDER BY id DESC")
+    try:
+        cursor.execute("SELECT * FROM measurements WHERE id IN (SELECT MAX(id) FROM measurements GROUP BY name) ORDER BY id DESC")
+    except Exception:
+        logger.exception("Failed query: Couldn't select latest from table measurements")
+        raise
 
     result = {"data": [MeasurementOut(**row) for row in cursor.fetchall()]}
 
