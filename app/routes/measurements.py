@@ -1,16 +1,18 @@
 from datetime import datetime, timezone
 import logging
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 
-from app.models import ApiResponse, MeasurementIn, MeasurementOut, CreateData
 from app.database import connection_dependency
+from app.models import ApiResponse, CreateData, MeasurementIn, MeasurementOut
 
 measurements_router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
 @measurements_router.post("", response_model=ApiResponse[CreateData])
-def post_measurements(db: connection_dependency, measurement_in: MeasurementIn):
+def post_measurements(db: connection_dependency, measurement_in: MeasurementIn) -> dict[str, str | dict[str, int]]:
 
     record: dict[str, str | int | float] = {}
 
@@ -35,18 +37,18 @@ def post_measurements(db: connection_dependency, measurement_in: MeasurementIn):
     
     db.commit()
 
-    result = {"message": "measurement stored", "data": {"id": row_id}}
+    result: dict[str, str | dict[str, int]] = {"message": "measurement stored", "data": {"id": row_id}}
 
     return result
 
 @measurements_router.get("", response_model=ApiResponse[list[MeasurementOut]])
-def get_measurements(db: connection_dependency, name: str | None = None, limit: int = 20):
-
-    if not (1 <= limit < 100):
-        raise HTTPException(400, detail="Limit must be between 1 and 99")
+def get_measurements(db: connection_dependency, name: str | None = None, limit: int = 20) -> dict[str, list[MeasurementOut]]:
 
     conditions: list[str] = []
     values: list[str | int] = []
+
+    if not (1 <= limit < 100):
+        raise HTTPException(400, detail="Limit must be between 1 and 99")
 
     if name is not None:
         conditions.append("name=?")
@@ -57,7 +59,6 @@ def get_measurements(db: connection_dependency, name: str | None = None, limit: 
     else:
         conditions_sql = ""
 
-    
     query = "SELECT * FROM measurements " 
     if conditions_sql:
         query += conditions_sql
@@ -65,7 +66,7 @@ def get_measurements(db: connection_dependency, name: str | None = None, limit: 
     values.append(limit)
 
     try:
-        rows = db.fetch_all(query, tuple(values))
+        rows: list[dict[str, Any]] = db.fetch_all(query, tuple(values))
     except Exception:
         logger.exception("Failed query: Couldn't fetch all values from table")
         raise
@@ -78,7 +79,7 @@ def get_measurements(db: connection_dependency, name: str | None = None, limit: 
 def get_measurements_latest(db: connection_dependency):
 
     try:
-        rows = db.fetch_all("SELECT * FROM measurements WHERE id IN (SELECT MAX(id) FROM measurements GROUP BY name) ORDER BY id DESC")
+        rows: list[dict[str, Any]] = db.fetch_all("SELECT * FROM measurements WHERE id IN (SELECT MAX(id) FROM measurements GROUP BY name) ORDER BY id DESC")
     except Exception:
         logger.exception("Failed query: Couldn't select latest from table measurements")
         raise

@@ -1,16 +1,18 @@
 from datetime import datetime, timezone
 import logging
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 
-from app.models import ApiResponse, DeviceIn, DeviceOut, DeviceState, CreateData, Database
 from app.database import connection_dependency
+from app.models import ApiResponse, CreateData, DeviceIn, DeviceOut, DeviceState
 
 devices_router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
 @devices_router.post("", response_model=ApiResponse[CreateData])
-def post_devices(db: connection_dependency, device_in: DeviceIn):
+def post_devices(db: connection_dependency, device_in: DeviceIn) -> dict[str, str | dict[str, int]]:
 
     record: dict[str, str | int | float] = {}
 
@@ -35,18 +37,18 @@ def post_devices(db: connection_dependency, device_in: DeviceIn):
     
     db.commit()
 
-    result = {"message": "device created", "data": {"id": row_id}}
+    result: dict[str, str | dict[str, int]] = {"message": "device created", "data": {"id": row_id}}
 
     return result
 
 @devices_router.get("", response_model=ApiResponse[list[DeviceOut]])
-def get_devices(db: connection_dependency, name: str | None = None, limit: int = 20):
-
-    if not (1 <= limit < 100):
-        raise HTTPException(400, detail="Limit must be between 1 and 99")
+def get_devices(db: connection_dependency, name: str | None = None, limit: int = 20) -> dict[str, list[DeviceOut]]:
 
     conditions: list[str] = []
     values: list[str | int] = []
+
+    if not (1 <= limit < 100):
+        raise HTTPException(400, detail="Limit must be between 1 and 99")
 
     if name is not None:
         conditions.append("name=?")
@@ -64,7 +66,7 @@ def get_devices(db: connection_dependency, name: str | None = None, limit: int =
     values.append(limit)
 
     try:
-        rows = db.fetch_all(query, tuple(values))
+        rows: list[dict[str, Any]] = db.fetch_all(query, tuple(values))
     except Exception:
         logger.exception("Failed query: Couldn't fetch all values from table")
         raise
@@ -74,10 +76,10 @@ def get_devices(db: connection_dependency, name: str | None = None, limit: int =
     return result
 
 @devices_router.get("/{name}", response_model=ApiResponse[DeviceOut])
-def get_devices_name(db: connection_dependency, name: str):
+def get_devices_name(db: connection_dependency, name: str) -> dict[str, DeviceOut]:
 
     try:
-        row = db.fetch_one("SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1", (name,))
+        row: dict[str, Any] | None = db.fetch_one("SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1", (name,))
     except Exception:
         logger.exception("Failed query: Couldn't select %s from table devices", name)
         raise
@@ -90,15 +92,15 @@ def get_devices_name(db: connection_dependency, name: str):
     return result
 
 @devices_router.post("/{name}/state", response_model=ApiResponse[DeviceOut])
-def post_devices_name_state(db: connection_dependency, name: str, state: str):
+def post_devices_name_state(db: connection_dependency, name: str, state: str) -> dict[str, str | DeviceOut]:
 
     try:
-        state = DeviceState(state.upper())
+        state = DeviceState[state.upper()]
     except ValueError:
         raise HTTPException(400, detail="Invalid state")
 
     try:
-        row = db.fetch_one("UPDATE devices SET state=? WHERE name=? RETURNING *", (state, name))
+        row: dict[str, Any] | None = db.fetch_one("UPDATE devices SET state=? WHERE name=? RETURNING *", (state, name))
     except Exception:
         logger.exception("Failed query: Couldn't update state of %s", name)
         raise
@@ -108,6 +110,6 @@ def post_devices_name_state(db: connection_dependency, name: str, state: str):
     
     db.commit()
 
-    result = {"message": "state updated", "data": DeviceOut(**row)}
+    result: dict[str, str | DeviceOut] = {"message": "state updated", "data": DeviceOut(**row)}
 
     return result

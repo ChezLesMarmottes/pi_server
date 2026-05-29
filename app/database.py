@@ -3,13 +3,9 @@ from fastapi import Depends
 
 from app.models import Database
 
-def get_connection():
-    db = Database()
+db = Database()
 
-    try:
-        yield db
-        
-    finally:
-        db.connection.close()
+def get_db() -> Database:
+    return db
 
-connection_dependency = Annotated[Database, Depends(get_connection)]
+connection_dependency = Annotated[Database, Depends(get_db)]
