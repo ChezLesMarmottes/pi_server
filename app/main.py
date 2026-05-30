@@ -14,45 +14,10 @@ logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-    #Start of program
-    connection = sqlite3.connect("data/platform.db")
-    cursor = connection.cursor()
-    logger.info("Server started, connection and cursor created")
-
-    #Create measurements table
-    try:
-        cursor.execute("""CREATE TABLE IF NOT EXISTS measurements (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    source TEXT,
-                    name TEXT, 
-                    value REAL,
-                    unit TEXT,
-                    timestamp TEXT
-                    );""")
-        logger.info("measurements table created")
-    except Exception:
-        logger.exception("Failed query: Couldn't create measurements table")
-        raise
-    
-    #Create devices table
-    try:
-        cursor.execute("""CREATE TABLE IF NOT EXISTS devices (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE,
-                    state TEXT,
-                    timestamp TEXT
-                    );""")
-        logger.info("devices table created")
-    except Exception:
-        logger.exception("Failed query: Couldn't create devices table")
-        raise
-
-    connection.commit()
-    connection.close()
+async def lifespan(app: FastAPI):
+    logger.info("Server started")
     yield
-    #End of program
-    logger.info("Connection closed")
+    logger.info("Server stopped")
 
 app = FastAPI(lifespan=lifespan)
 

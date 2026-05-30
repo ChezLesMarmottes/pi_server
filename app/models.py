@@ -9,6 +9,32 @@ class Database:
     def __init__(self, db_path = "data/platform.db") -> None:
         self.connection = sqlite3.connect(db_path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
+        self.init_db()
+
+    def init_db(self):
+        cursor = self.connection.cursor()
+
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS measurements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source TEXT,
+            name TEXT, 
+            value REAL,
+            unit TEXT,
+            timestamp TEXT
+        );
+        """)
+
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS devices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE,
+            state TEXT,
+            timestamp TEXT
+        );
+        """)
+
+        self.connection.commit()
 
     def execute(self, query: str, values: tuple | None = None) -> sqlite3.Cursor:
         cursor = self.connection.cursor()

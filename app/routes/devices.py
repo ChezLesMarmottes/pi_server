@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import logging
+import sqlite3
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -27,6 +28,9 @@ def post_devices(db: connection_dependency, device_in: DeviceIn) -> dict[str, st
 
     try:
         cursor = db.execute(query, tuple(values))
+    except sqlite3.IntegrityError:
+        logger.info("Device with this name already exists")
+        raise HTTPException(400, detail="Device already exists")
     except Exception:
         logger.exception("Failed query: Couldn't insert record into table")
         raise
@@ -96,7 +100,7 @@ def post_devices_name_state(db: connection_dependency, name: str, state: str) ->
 
     try:
         state = DeviceState[state.upper()]
-    except ValueError:
+    except (ValueError, KeyError):
         raise HTTPException(400, detail="Invalid state")
 
     try:
