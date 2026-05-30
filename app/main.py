@@ -11,15 +11,15 @@ from app.routes.measurements import measurements_router
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s", level=logging.INFO)
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Server started")
     yield
     logger.info("Server stopped")
 
-app = FastAPI(lifespan=lifespan)
+app: FastAPI = FastAPI(lifespan=lifespan)
 
 app.include_router(measurements_router, prefix="/measurements")
 app.include_router(devices_router, prefix="/devices")

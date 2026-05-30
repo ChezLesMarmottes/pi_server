@@ -6,13 +6,15 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Any, Generic, Optional, TypeVar
 
 class Database:
-    def __init__(self, db_path = "data/platform.db") -> None:
+    connection: sqlite3.Connection
+
+    def __init__(self, db_path: str = "data/platform.db") -> None:
         self.connection = sqlite3.connect(db_path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
         self.init_db()
 
-    def init_db(self):
-        cursor = self.connection.cursor()
+    def init_db(self) -> None:
+        cursor: sqlite3.Cursor = self.connection.cursor()
 
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS measurements (
@@ -36,21 +38,21 @@ class Database:
 
         self.connection.commit()
 
-    def execute(self, query: str, values: tuple | None = None) -> sqlite3.Cursor:
-        cursor = self.connection.cursor()
+    def execute(self, query: str, values: tuple[str | int | float, ...] | None = None) -> sqlite3.Cursor:
+        cursor: sqlite3.Cursor = self.connection.cursor()
         if values is not None:
             cursor.execute(query, values)
         else:
             cursor.execute(query)
         return cursor
 
-    def fetch_all(self, query: str, values: tuple | None = None) -> list[dict[Any, Any]]:
-        cursor = self.execute(query, values)
+    def fetch_all(self, query: str, values: tuple[str | int | float, ...] | None = None) -> list[dict[Any, Any]]:
+        cursor: sqlite3.Cursor = self.execute(query, values)
         return [dict(row) for row in cursor.fetchall()]
 
-    def fetch_one(self, query: str, values: tuple | None = None) -> dict[Any, Any] | None:
-        cursor = self.execute(query, values)
-        result = cursor.fetchone()
+    def fetch_one(self, query: str, values: tuple[str | int | float, ...] | None = None) -> dict[Any, Any] | None:
+        cursor: sqlite3.Cursor = self.execute(query, values)
+        result: sqlite3.Row | None = cursor.fetchone()
         return dict(result) if result is not None else None
     
     def commit(self) -> None:

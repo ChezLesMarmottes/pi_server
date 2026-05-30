@@ -8,9 +8,9 @@ from fastapi import APIRouter, HTTPException
 from app.database import connection_dependency
 from app.models import ApiResponse, CreateData, DeviceIn, DeviceOut, DeviceState
 
-devices_router = APIRouter()
+devices_router: APIRouter = APIRouter()
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 @devices_router.post("", response_model=ApiResponse[CreateData])
 def post_devices(db: connection_dependency, device_in: DeviceIn) -> dict[str, str | dict[str, int]]:
@@ -20,21 +20,21 @@ def post_devices(db: connection_dependency, device_in: DeviceIn) -> dict[str, st
     record.update(device_in.model_dump())
     record["timestamp"] = datetime.now(timezone.utc).isoformat()
 
-    columns = ", ".join(record.keys())
-    placeholders = ", ".join(["?"] * len(record))
-    values = tuple(record.values())
+    columns: str = ", ".join(record.keys())
+    placeholders: str = ", ".join(["?"] * len(record))
+    values: tuple[str | int | float, ...] = tuple(record.values())
 
-    query = f"INSERT INTO devices ({columns}) VALUES ({placeholders});"
+    query: str = f"INSERT INTO devices ({columns}) VALUES ({placeholders});"
 
     try:
-        cursor = db.execute(query, tuple(values))
+        cursor: sqlite3.Cursor = db.execute(query, values)
     except sqlite3.IntegrityError:
         logger.info("Device with this name already exists")
         raise HTTPException(400, detail="Device already exists")
     except Exception:
         logger.exception("Failed query: Couldn't insert record into table")
         raise
-    row_id = cursor.lastrowid
+    row_id: int | None = cursor.lastrowid
 
     if row_id is None:
         raise RuntimeError("Insert failed")
@@ -58,12 +58,9 @@ def get_devices(db: connection_dependency, name: str | None = None, limit: int =
         conditions.append("name=?")
         values.append(name)
     
-    if conditions:
-        conditions_sql = "WHERE " + " AND ".join(conditions)
-    else:
-        conditions_sql = ""
+    conditions_sql: str = "WHERE " + " AND ".join(conditions) if conditions else ""
     
-    query = "SELECT * FROM devices " 
+    query: str = "SELECT * FROM devices "
     if conditions_sql:
         query += conditions_sql
     query += " ORDER BY id DESC LIMIT ?"
@@ -75,7 +72,7 @@ def get_devices(db: connection_dependency, name: str | None = None, limit: int =
         logger.exception("Failed query: Couldn't fetch all values from table")
         raise
     
-    result = {"data": [DeviceOut(**row) for row in rows]}
+    result: dict[str, list[DeviceOut]] = {"data": [DeviceOut(**row) for row in rows]}
 
     return result
 
@@ -83,7 +80,10 @@ def get_devices(db: connection_dependency, name: str | None = None, limit: int =
 def get_devices_name(db: connection_dependency, name: str) -> dict[str, DeviceOut]:
 
     try:
-        row: dict[str, Any] | None = db.fetch_one("SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1", (name,))
+        row: dict[str, Any] | None = db.fetch_one(
+            "SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1",
+            (name,),
+        )
     except Exception:
         logger.exception("Failed query: Couldn't select %s from table devices", name)
         raise
@@ -99,12 +99,15 @@ def get_devices_name(db: connection_dependency, name: str) -> dict[str, DeviceOu
 def post_devices_name_state(db: connection_dependency, name: str, state: str) -> dict[str, str | DeviceOut]:
 
     try:
-        state = DeviceState[state.upper()]
+        state_value: DeviceState = DeviceState[state.upper()]
     except (ValueError, KeyError):
         raise HTTPException(400, detail="Invalid state")
 
     try:
-        row: dict[str, Any] | None = db.fetch_one("UPDATE devices SET state=? WHERE name=? RETURNING *", (state, name))
+        row: dict[str, Any] | None = db.fetch_one(
+            "UPDATE devices SET state=? WHERE name=? RETURNING *",
+            (state_value, name),
+        )
     except Exception:
         logger.exception("Failed query: Couldn't update state of %s", name)
         raise
