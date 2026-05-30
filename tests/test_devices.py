@@ -101,7 +101,7 @@ def test_get_devices_by_name_returns_404_for_missing_device(client: TestClient) 
 def test_post_device_state_updates_device_state(client: TestClient) -> None:
     create_device(client, "pump", "off")
 
-    response: Response = client.post("/devices/pump/state", params={"state": "on"})
+    response: Response = client.post("/devices/pump/state", json={"state": "on"})
     assert response.status_code == 200
 
     body: dict[str, Any] = response.json()
@@ -115,12 +115,12 @@ def test_post_device_state_updates_device_state(client: TestClient) -> None:
 def test_post_device_state_rejects_invalid_state(client: TestClient) -> None:
     create_device(client, "pump", "off")
 
-    response: Response = client.post("/devices/pump/state", params={"state": "notastate"})
+    response: Response = client.post("/devices/pump/state", json={"state": "notastate"})
     assert response.status_code == 400
 
 
 def test_post_device_state_returns_404_for_unknown_device(client: TestClient) -> None:
-    response: Response = client.post("/devices/ghost/state", params={"state": "on"})
+    response: Response = client.post("/devices/ghost/state", json={"state": "on"})
     assert response.status_code == 404
 
 

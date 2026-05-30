@@ -77,7 +77,7 @@ data/platform.db
 
 ## API Reference
 
-All endpoints return JSON wrapped in an `ApiResponse` envelope.
+All endpoints return JSON wrapped in an `ApiResponse` envelope, except for /health, which returns plain {"status": "ok"}.
 
 ### Health
 

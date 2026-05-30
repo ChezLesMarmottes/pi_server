@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 
 from app.database import connection_dependency
-from app.models import ApiResponse, CreateData, DeviceIn, DeviceOut, DeviceState
+from app.models import ApiResponse, CreateData, DeviceIn, DeviceOut, DeviceState, DeviceStateIn
 
 devices_router: APIRouter = APIRouter()
 
@@ -14,6 +14,11 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 @devices_router.post("", response_model=ApiResponse[CreateData])
 def post_devices(db: connection_dependency, device_in: DeviceIn) -> dict[str, str | dict[str, int]]:
+
+    try:
+        DeviceState[device_in.state.upper()]
+    except (ValueError, KeyError):
+        raise HTTPException(400, detail="Invalid state")
 
     record: dict[str, str | int | float] = {}
 
@@ -96,10 +101,10 @@ def get_devices_name(db: connection_dependency, name: str) -> dict[str, DeviceOu
     return result
 
 @devices_router.post("/{name}/state", response_model=ApiResponse[DeviceOut])
-def post_devices_name_state(db: connection_dependency, name: str, state: str) -> dict[str, str | DeviceOut]:
+def post_devices_name_state(db: connection_dependency, name: str, state_in: DeviceStateIn) -> dict[str, str | DeviceOut]:
 
     try:
-        state_value: DeviceState = DeviceState[state.upper()]
+        state_value: DeviceState = DeviceState[state_in.state.upper()]
     except (ValueError, KeyError):
         raise HTTPException(400, detail="Invalid state")
 

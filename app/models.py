@@ -1,4 +1,5 @@
 import math
+import os
 import sqlite3
 from enum import Enum
 
@@ -9,6 +10,8 @@ class Database:
     connection: sqlite3.Connection
 
     def __init__(self, db_path: str = "data/platform.db") -> None:
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
         self.connection = sqlite3.connect(db_path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
         self.init_db()
@@ -94,12 +97,15 @@ class DeviceOut(BaseModel):
     state: str
     timestamp: str
 
+class DeviceStateIn(BaseModel):
+    state: str = Field(min_length=1)
+
+class CreateData(BaseModel):
+    id: int
+
 class DeviceState(str, Enum):
     ON = "ON"
     OFF = "OFF"
     ARMED = "ARMED"
     READING = "READING"
     READY = "READY"
-
-class CreateData(BaseModel):
-    id: int
