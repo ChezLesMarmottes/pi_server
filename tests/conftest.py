@@ -2,15 +2,15 @@ import sys
 from pathlib import Path
 from typing import Iterator
 
+ROOT: Path = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.database import get_db
 from app.models import Database
-
-ROOT: Path = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
