@@ -10,7 +10,9 @@ class Database:
     connection: sqlite3.Connection
 
     def __init__(self, db_path: str = "data/platform.db") -> None:
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        db_dir = os.path.dirname(db_path)
+        if db_path != ":memory:" and db_dir:
+            os.makedirs(db_dir, exist_ok=True)
 
         self.connection = sqlite3.connect(db_path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
@@ -104,8 +106,14 @@ class CreateData(BaseModel):
     id: int
 
 class DeviceState(str, Enum):
-    ON = "ON"
     OFF = "OFF"
-    ARMED = "ARMED"
-    READING = "READING"
-    READY = "READY"
+    ON = "ON"
+
+class SensorState(str, Enum):
+    INACTIVE = "INACTIVE"
+    ACTIVE = "ACTIVE"
+
+class SystemMode(str, Enum):
+    DISARMED = "DISARMED"
+    ARMED_AWAY = "ARMED_AWAY"
+    ARMED_HOME = "ARMED_HOME"
