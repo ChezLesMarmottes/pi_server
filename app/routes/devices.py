@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 
 from app.get_db import connection_dependency
-from app.schemas import ApiResponse, CreateData, DeviceIn, DeviceOut, DeviceState, DeviceStateIn
+from app.schemas import ApiResponse, CreateData, DeviceIn, DeviceOut, DeviceStateIn
 
 devices_router: APIRouter = APIRouter()
 
@@ -15,19 +15,14 @@ logger: logging.Logger = logging.getLogger(__name__)
 @devices_router.post("", response_model=ApiResponse[CreateData])
 def post_devices(db: connection_dependency, device_in: DeviceIn) -> dict[str, str | dict[str, int]]:
 
-    try:
-        DeviceState[device_in.state.upper()]
-    except (ValueError, KeyError):
-        raise HTTPException(400, detail="Invalid state")
+    record: dict[str, str | int | float | datetime] = {}
 
-    record: dict[str, str | int | float] = {}
-
-    record.update(device_in.model_dump())
+    record.update(device_in.model_dump(mode="json"))
     record["timestamp"] = datetime.now(timezone.utc).isoformat()
 
     columns: str = ", ".join(record.keys())
     placeholders: str = ", ".join(["?"] * len(record))
-    values: tuple[str | int | float, ...] = tuple(record.values())
+    values: tuple[str | int | float | datetime, ...] = tuple(record.values())
 
     query: str = f"INSERT INTO devices ({columns}) VALUES ({placeholders});"
 
@@ -104,14 +99,9 @@ def get_devices_name(db: connection_dependency, name: str) -> dict[str, DeviceOu
 def post_devices_name_state(db: connection_dependency, name: str, state_in: DeviceStateIn) -> dict[str, str | DeviceOut]:
 
     try:
-        state_value: DeviceState = DeviceState[state_in.state.upper()]
-    except (ValueError, KeyError):
-        raise HTTPException(400, detail="Invalid state")
-
-    try:
         row: dict[str, Any] | None = db.fetch_one(
             "UPDATE devices SET state=? WHERE name=? RETURNING *",
-            (state_value, name)
+            (state_in.state.value, name)
         )
     except Exception:
         logger.exception("Failed query: Couldn't update state of %s", name)

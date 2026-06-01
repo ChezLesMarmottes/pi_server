@@ -116,7 +116,7 @@ def test_post_device_state_rejects_invalid_state(client: TestClient) -> None:
     create_device(client, "pump", "off")
 
     response: Response = client.post("/devices/pump/state", json={"state": "notastate"})
-    assert response.status_code == 400
+    assert response.status_code == 422
 
 
 def test_post_device_state_returns_404_for_unknown_device(client: TestClient) -> None:

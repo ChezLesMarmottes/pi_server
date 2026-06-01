@@ -15,14 +15,14 @@ logger: logging.Logger = logging.getLogger(__name__)
 @measurements_router.post("", response_model=ApiResponse[CreateData])
 def post_measurements(db: connection_dependency, measurement_in: MeasurementIn) -> dict[str, str | dict[str, int]]:
 
-    record: dict[str, str | int | float] = {}
+    record: dict[str, str | int | float | datetime] = {}
 
-    record.update(measurement_in.model_dump())
+    record.update(measurement_in.model_dump(mode="json"))
     record["timestamp"] = datetime.now(timezone.utc).isoformat()
 
     columns: str = ", ".join(record.keys())
     placeholders: str = ", ".join(["?"] * len(record))
-    values: tuple[str | int | float, ...] = tuple(record.values())
+    values: tuple[str | int | float | datetime, ...] = tuple(record.values())
 
     query: str = f"INSERT INTO measurements ({columns}) VALUES ({placeholders});"
 

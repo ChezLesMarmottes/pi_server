@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 
 from app.get_db import connection_dependency
-from app.schemas import ApiResponse, CreateData, RuleEnabled, RuleEnabledIn, RuleIn, RuleOut
+from app.schemas import ApiResponse, CreateData, RuleIn, RuleOut, RuleEnabledIn
 
 rules_router: APIRouter = APIRouter()
 
@@ -15,19 +15,14 @@ logger: logging.Logger = logging.getLogger(__name__)
 @rules_router.post("", response_model=ApiResponse[CreateData])
 def post_rules(db: connection_dependency, rule_in: RuleIn) -> dict[str, str | dict[str, int]]:
 
-    try:
-        RuleEnabled[rule_in.enabled.upper()]
-    except (ValueError, KeyError):
-        raise HTTPException(400, detail="Invalid toggle")
+    record: dict[str, str | int | float | datetime] = {}
 
-    record: dict[str, str | int | float] = {}
-
-    record.update(rule_in.model_dump())
+    record.update(rule_in.model_dump(mode="json"))
     record["timestamp"] = datetime.now(timezone.utc).isoformat()
 
     columns: str = ", ".join(record.keys())
     placeholders: str = ", ".join(["?"] * len(record))
-    values: tuple[str | int | float, ...] = tuple(record.values())
+    values: tuple[str | int | float | datetime, ...] = tuple(record.values())
 
     query: str = f"INSERT INTO rules ({columns}) VALUES ({placeholders});"
 
@@ -101,17 +96,12 @@ def get_rules_name(db: connection_dependency, name: str) -> dict[str, RuleOut]:
     return result
 
 @rules_router.post("/{name}/toggle", response_model=ApiResponse[RuleOut])
-def post_name_toggle(db: connection_dependency, name: str, toggle_in: RuleEnabledIn) -> dict[str, str | RuleOut]:
-
-    try:
-        toggle_value: RuleEnabled = RuleEnabled[toggle_in.enabled.upper()]
-    except (ValueError, KeyError):
-        raise HTTPException(400, detail="Invalid toggle")
+def post_name_toggle(db: connection_dependency, name: str, enabled: RuleEnabledIn) -> dict[str, str | RuleOut]:
 
     try:
         row: dict[str, Any] | None = db.fetch_one(
             "UPDATE rules SET enabled=? WHERE name=? RETURNING *",
-            (toggle_value, name)
+            (enabled.enabled, name)
         )
     except Exception:
         logger.exception("Failed query: Couldn't update toggle for %s", name)
@@ -126,14 +116,19 @@ def post_name_toggle(db: connection_dependency, name: str, toggle_in: RuleEnable
 
     return result
 
-@rules_router.delete("/{name}", response_model=ApiResponse[RuleOut])
+@rules_router.delete("/{name}", response_model=ApiResponse[None])
 def delete_name(db: connection_dependency, name: str) -> dict[str, str]:
 
     try:
-        db.execute("DELETE FROM rules WHERE name=?", (name,))
+        cursor = db.execute("DELETE FROM rules WHERE name=?", (name,))
     except Exception:
         logger.exception("Failed query: Couldn't select %s from table rules", name)
         raise
+
+    if cursor.rowcount == 0:
+        raise HTTPException(404, "Rule not found")
+    
+    db.commit()
 
     result = {"message": f"rule {name} deleted"}
 

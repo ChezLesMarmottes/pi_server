@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import sqlite3
 
@@ -42,7 +43,7 @@ class Database:
         CREATE TABLE IF NOT EXISTS rules (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
-            enabled TEXT NOT NULL,
+            enabled BOOLEAN NOT NULL,
             condition_type TEXT NOT NULL,
             condition_measurement TEXT NOT NULL,
             condition_operator TEXT NOT NULL,
@@ -56,7 +57,7 @@ class Database:
 
         self.connection.commit()
 
-    def execute(self, query: str, values: tuple[str | int | float, ...] | None = None) -> sqlite3.Cursor:
+    def execute(self, query: str, values: tuple[str | int | float | datetime, ...] | None = None) -> sqlite3.Cursor:
         cursor: sqlite3.Cursor = self.connection.cursor()
         if values is not None:
             cursor.execute(query, values)

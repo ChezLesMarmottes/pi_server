@@ -11,7 +11,7 @@ def create_device(client: TestClient, name: str = "pump", state: str = "off") ->
     )
 
 
-def create_rule(client: TestClient, name: str = "fan_control", enabled: str = "enabled") -> Response:
+def create_rule(client: TestClient, name: str = "fan_control", enabled: bool = True) -> Response:
     return client.post(
         "/rules",
         json={
@@ -51,7 +51,7 @@ def test_get_rules_returns_created_rule(client: TestClient) -> None:
     assert body["status"] == "ok"
     assert len(body["data"]) == 1
     assert body["data"][0]["name"] == "fan_control"
-    assert body["data"][0]["enabled"] == "enabled"
+    assert body["data"][0]["enabled"] is True
 
 
 def test_get_rule_by_name_returns_rule(client: TestClient) -> None:
@@ -72,10 +72,10 @@ def test_disable_rule_prevents_automation(client: TestClient) -> None:
     create_device(client, "fan", "off")
     create_rule(client, "fan_control")
 
-    response: Response = client.post("/rules/fan_control/toggle", json={"enabled": "disabled"})
+    response: Response = client.post("/rules/fan_control/toggle", json={"enabled": False})
     assert response.status_code == 200
     body: dict[str, Any] = response.json()
-    assert body["data"]["enabled"] == "DISABLED"
+    assert body["data"]["enabled"] is False
 
     measure: Response = client.post(
         "/measurements",

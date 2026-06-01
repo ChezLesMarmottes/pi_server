@@ -1,3 +1,4 @@
+from datetime import datetime
 import math
 from enum import Enum
 from typing import Generic, Optional, TypeVar
@@ -36,10 +37,6 @@ class CaseInsensitiveStrEnum(str, Enum):
 class DeviceState(CaseInsensitiveStrEnum):
     OFF = "OFF"
     ON = "ON"
-
-class RuleEnabled(CaseInsensitiveStrEnum):
-    DISABLED = "DISABLED"
-    ENABLED = "ENABLED"
 
 class ConditionType(CaseInsensitiveStrEnum):
     MEASUREMENT_THRESHOLD = "measurement_threshold"
@@ -82,26 +79,26 @@ class MeasurementOut(BaseModel):
     name: str
     value: float
     unit: Optional[str] = None
-    timestamp: str
+    timestamp: datetime
 
 
 class DeviceIn(BaseModel):
     name: str = Field(min_length=1)
-    state: str = Field(min_length=1)
+    state: DeviceState
 
 class DeviceOut(BaseModel):
     id: int
     name: str
     state: DeviceState
-    timestamp: str
+    timestamp: datetime
 
 class DeviceStateIn(BaseModel):
-    state: str = Field(min_length=1)
+    state: DeviceState
 
 
 class RuleIn(BaseModel):
     name: str = Field(min_length=1)
-    enabled: str = Field(min_length=1)
+    enabled: bool
     condition_type: ConditionType
     condition_measurement: str = Field(min_length=1)
     condition_operator: ComparisonOperator
@@ -113,7 +110,7 @@ class RuleIn(BaseModel):
 class RuleOut(BaseModel):
     id: int
     name: str = Field(min_length=1)
-    enabled: str = Field(min_length=1)
+    enabled: bool
     condition_type: ConditionType
     condition_measurement: str = Field(min_length=1)
     condition_operator: ComparisonOperator
@@ -121,10 +118,10 @@ class RuleOut(BaseModel):
     action_type: ActionType
     action_device: str = Field(min_length=1)
     action_state: DeviceState
-    timestamp: str
+    timestamp: datetime
 
 class RuleEnabledIn(BaseModel):
-    enabled: str = Field(min_length=1)
+    enabled: bool
 
 
 class CreateData(BaseModel):
