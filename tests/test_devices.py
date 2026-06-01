@@ -3,7 +3,7 @@ from typing import Any
 from fastapi.testclient import TestClient
 from httpx import Response
 
-from app.class_database import DeviceOut
+from app.schemas import DeviceOut
 
 
 def create_device(client: TestClient, name: str = "pump", state: str = "off") -> Response:

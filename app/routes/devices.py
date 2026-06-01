@@ -87,7 +87,7 @@ def get_devices_name(db: connection_dependency, name: str) -> dict[str, DeviceOu
     try:
         row: dict[str, Any] | None = db.fetch_one(
             "SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1",
-            (name,),
+            (name,)
         )
     except Exception:
         logger.exception("Failed query: Couldn't select %s from table devices", name)
@@ -111,7 +111,7 @@ def post_devices_name_state(db: connection_dependency, name: str, state_in: Devi
     try:
         row: dict[str, Any] | None = db.fetch_one(
             "UPDATE devices SET state=? WHERE name=? RETURNING *",
-            (state_value, name),
+            (state_value, name)
         )
     except Exception:
         logger.exception("Failed query: Couldn't update state of %s", name)

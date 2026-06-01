@@ -9,7 +9,7 @@ T = TypeVar("T")
 class ApiResponse(BaseModel, Generic[T]):
     status: str = "ok"
     message: str | None = None
-    data: T
+    data: T | None = None
 
 
 class CaseInsensitiveStrEnum(str, Enum):
@@ -36,6 +36,10 @@ class CaseInsensitiveStrEnum(str, Enum):
 class DeviceState(CaseInsensitiveStrEnum):
     OFF = "OFF"
     ON = "ON"
+
+class RuleEnabled(CaseInsensitiveStrEnum):
+    DISABLED = "DISABLED"
+    ENABLED = "ENABLED"
 
 class ConditionType(CaseInsensitiveStrEnum):
     MEASUREMENT_THRESHOLD = "measurement_threshold"
@@ -95,33 +99,32 @@ class DeviceStateIn(BaseModel):
     state: str = Field(min_length=1)
 
 
-class RuleCondition(BaseModel):
-    type: ConditionType
-    measurement: str = Field(min_length=1)
-    operator: ComparisonOperator
-    value: float
-
-class RuleAction(BaseModel):
-    type: ActionType
-    device: str = Field(min_length=1)
-    state: DeviceState
-
 class RuleIn(BaseModel):
     name: str = Field(min_length=1)
-    enabled: bool = True
-    condition: RuleCondition
-    action: RuleAction
+    enabled: str = Field(min_length=1)
+    condition_type: ConditionType
+    condition_measurement: str = Field(min_length=1)
+    condition_operator: ComparisonOperator
+    condition_value: float
+    action_type: ActionType
+    action_device: str = Field(min_length=1)
+    action_state: DeviceState
 
 class RuleOut(BaseModel):
     id: int
-    name: str
-    enabled: bool
-    condition: RuleCondition
-    action: RuleAction
+    name: str = Field(min_length=1)
+    enabled: str = Field(min_length=1)
+    condition_type: ConditionType
+    condition_measurement: str = Field(min_length=1)
+    condition_operator: ComparisonOperator
+    condition_value: float
+    action_type: ActionType
+    action_device: str = Field(min_length=1)
+    action_state: DeviceState
     timestamp: str
 
 class RuleEnabledIn(BaseModel):
-    enabled: bool
+    enabled: str = Field(min_length=1)
 
 
 class CreateData(BaseModel):

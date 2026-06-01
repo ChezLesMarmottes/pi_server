@@ -42,7 +42,7 @@ class Database:
         CREATE TABLE IF NOT EXISTS rules (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
-            enabled INTEGER NOT NULL,
+            enabled TEXT NOT NULL,
             condition_type TEXT NOT NULL,
             condition_measurement TEXT NOT NULL,
             condition_operator TEXT NOT NULL,
