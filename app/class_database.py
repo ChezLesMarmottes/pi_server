@@ -1,10 +1,7 @@
-import math
 import os
 import sqlite3
-from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any
 
 class Database:
     connection: sqlite3.Connection
@@ -21,23 +18,39 @@ class Database:
     def init_db(self) -> None:
         cursor: sqlite3.Cursor = self.connection.cursor()
 
-        cursor.execute("""
+        cursor.execute("""             
         CREATE TABLE IF NOT EXISTS measurements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source TEXT,
-            name TEXT, 
-            value REAL,
+            source TEXT NOT NULL,
+            name TEXT NOT NULL,
+            value REAL NOT NULL,
             unit TEXT,
-            timestamp TEXT
+            timestamp TEXT NOT NULL
         );
         """)
 
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS devices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE,
-            state TEXT,
-            timestamp TEXT
+            name TEXT UNIQUE NOT NULL,
+            state TEXT NOT NULL,
+            timestamp TEXT NOT NULL
+        );
+        """)
+
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS rules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            enabled INTEGER NOT NULL,
+            condition_type TEXT NOT NULL,
+            condition_measurement TEXT NOT NULL,
+            condition_operator TEXT NOT NULL,
+            condition_value REAL NOT NULL,
+            action_type TEXT NOT NULL,
+            action_device TEXT NOT NULL,
+            action_state TEXT NOT NULL,
+            timestamp TEXT NOT NULL
         );
         """)
 
@@ -62,58 +75,3 @@ class Database:
     
     def commit(self) -> None:
         self.connection.commit()
-
-T = TypeVar("T")
-class ApiResponse(BaseModel, Generic[T]):
-    status: str = "ok"
-    message: str | None = None
-    data: T
-
-class MeasurementIn(BaseModel):
-    source: str = Field(min_length=1)
-    name: str = Field(min_length=1)
-    value: float
-    unit: Optional[str] = None
-
-    @field_validator("value")
-    def check_finite(cls, v: int | float) -> int | float:
-        if not math.isfinite(v):
-            raise ValueError("value must be finite")
-        return v
-    
-class MeasurementOut(BaseModel):
-    id: int
-    source: str
-    name: str
-    value: float
-    unit: Optional[str] = None
-    timestamp: str
-
-class DeviceIn(BaseModel):
-    name: str = Field(min_length=1)
-    state: str = Field(min_length=1)
-
-class DeviceOut(BaseModel):
-    id: int
-    name: str
-    state: str
-    timestamp: str
-
-class DeviceStateIn(BaseModel):
-    state: str = Field(min_length=1)
-
-class CreateData(BaseModel):
-    id: int
-
-class DeviceState(str, Enum):
-    OFF = "OFF"
-    ON = "ON"
-
-class SensorState(str, Enum):
-    INACTIVE = "INACTIVE"
-    ACTIVE = "ACTIVE"
-
-class SystemMode(str, Enum):
-    DISARMED = "DISARMED"
-    ARMED_AWAY = "ARMED_AWAY"
-    ARMED_HOME = "ARMED_HOME"

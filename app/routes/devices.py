@@ -5,8 +5,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from app.database import connection_dependency
-from app.models import ApiResponse, CreateData, DeviceIn, DeviceOut, DeviceState, DeviceStateIn
+from app.get_db import connection_dependency
+from app.schemas import ApiResponse, CreateData, DeviceIn, DeviceOut, DeviceState, DeviceStateIn
 
 devices_router: APIRouter = APIRouter()
 

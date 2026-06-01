@@ -1,7 +1,7 @@
 from typing import Annotated
 from fastapi import Depends
 
-from app.models import Database
+from app.class_database import Database
 
 db = Database()
 

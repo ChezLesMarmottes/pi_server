@@ -5,8 +5,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from app.database import connection_dependency
-from app.models import ApiResponse, CreateData, MeasurementIn, MeasurementOut
+from app.get_db import connection_dependency
+from app.schemas import ApiResponse, CreateData, MeasurementIn, MeasurementOut
 
 measurements_router: APIRouter = APIRouter()
 

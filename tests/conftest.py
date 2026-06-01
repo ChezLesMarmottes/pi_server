@@ -9,8 +9,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.database import get_db
-from app.models import Database
+from app.get_db import get_db
+from app.class_database import Database
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:

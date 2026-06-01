@@ -3,7 +3,7 @@ from typing import Any
 from fastapi.testclient import TestClient
 from httpx import Response
 
-from app.models import MeasurementOut
+from app.class_database import MeasurementOut
 
 
 def create_measurement(
