@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.crud_helpers import get_record_by_name, get_records, insert_record, prepare_record_for_insert
 from app.get_db import connection_dependency
+from app.rule_engine import evaluate_rule, execute_rule_action
 from app.schemas import ApiResponse, CreateData, MeasurementIn, MeasurementOut
 
 measurements_router: APIRouter = APIRouter()
@@ -21,6 +22,13 @@ def post_measurements(db: connection_dependency, measurement_in: MeasurementIn) 
     except Exception:
         logger.exception("Failed query: Couldn't insert record into table")
         raise
+
+    # Real-time: evaluate against all enabled rules
+    rules = db.fetch_all("SELECT * FROM rules WHERE enabled=?", (True,))
+    for rule in rules:
+        if evaluate_rule(rule, record):
+            execute_rule_action(db, rule)
+            logger.info(f"Rule '{rule['name']}' triggered by current measurement")
     
     result: dict[str, str | dict[str, int]] = {"status": "ok", "message": "measurement stored", "data": {"id": row_id}}
 

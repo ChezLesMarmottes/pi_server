@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.crud_helpers import get_record_by_name, get_records, insert_record, prepare_record_for_insert
 from app.get_db import connection_dependency
+from app.rule_engine import evaluate_rule_retroactively
 from app.schemas import ApiResponse, CreateData, RuleIn, RuleOut, RuleEnabledIn
 
 rules_router: APIRouter = APIRouter()
@@ -25,6 +26,15 @@ def post_rules(db: connection_dependency, rule_in: RuleIn) -> dict[str, str | di
     except Exception:
         logger.exception("Failed query: Couldn't insert record into table")
         raise
+
+    # Retroactive: evaluate against all existing measurements
+    if rule_in.enabled:
+        fetched_rule = db.fetch_one("SELECT * FROM rules WHERE id=?", (row_id,))
+        if not fetched_rule:
+            logger.exception("Rule does not exist after creation")
+            raise HTTPException(500, detail="Failed to create rule")
+        count = evaluate_rule_retroactively(db, fetched_rule)
+        logger.info(f"Rule '{rule_in.name}' would have triggered {count} times retroactively")
 
     result: dict[str, str | dict[str, int]] = {"status": "ok", "message": "rule created", "data": {"id": row_id}}
 
@@ -78,6 +88,11 @@ def post_name_toggle(db: connection_dependency, name: str, enabled: RuleEnabledI
         raise HTTPException(404, detail="Rule not found")
     
     db.commit()
+
+    # Retroactive: If toggling to enabled, evaluate against all existing measurements
+    if enabled.enabled:
+        count = evaluate_rule_retroactively(db, row)
+        logger.info(f"Rule '{name}' retroactively fired {count} times after re-enabling")
 
     result: dict[str, str | RuleOut] = {"status": "ok", "message": "toggle updated", "data": RuleOut(**row)}
 

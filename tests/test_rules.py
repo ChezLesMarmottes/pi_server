@@ -88,24 +88,21 @@ def test_disable_rule_prevents_automation(client: TestClient) -> None:
     device_body: dict[str, Any] = device_response.json()
     assert device_body["data"]["state"] == "OFF"
 
-#---------------------------------------------------------------------------------------#
-#       LATER RULE_ENGINE FUNCTIONALITY OF RULES TRIGGERING BASED ON MEASUREMENTS       #
-#---------------------------------------------------------------------------------------#
-#def test_measurement_triggers_enabled_rule(client: TestClient) -> None:                #
-#    create_device(client, "fan", "off")                                                #
-#    create_rule(client, "fan_control")                                                 #
-#                                                                                       #
-#    response: Response = client.post(                                                  #
-#        "/measurements",                                                               #
-#        json={"source": "sensor", "name": "temperature", "value": 27.0, "unit": "C"},  #
-#    )                                                                                  #
-#    assert response.status_code == 200                                                 #
-#                                                                                       #
-#    device_response: Response = client.get("/devices/fan")                             #
-#    assert device_response.status_code == 200                                          #
-#    device_body: dict[str, Any] = device_response.json()                               #
-#    assert device_body["data"]["state"] == "ON"                                        #
-#---------------------------------------------------------------------------------------#
+
+def test_measurement_triggers_enabled_rule(client: TestClient) -> None:
+    create_device(client, "fan", "off")
+    create_rule(client, "fan_control")
+
+    response: Response = client.post(
+        "/measurements",
+        json={"source": "sensor", "name": "temperature", "value": 27.0, "unit": "C"},
+    )
+    assert response.status_code == 200
+
+    device_response: Response = client.get("/devices/fan")
+    assert device_response.status_code == 200
+    device_body: dict[str, Any] = device_response.json()
+    assert device_body["data"]["state"] == "ON"
 
 
 def test_delete_rule_removes_it(client: TestClient) -> None:
