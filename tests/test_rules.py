@@ -4,9 +4,9 @@ from fastapi.testclient import TestClient
 from httpx import Response
 
 
-def create_device(client: TestClient, name: str = "pump", state: str = "off") -> Response:
+def create_sensor(client: TestClient, name: str = "pump", state: str = "off") -> Response:
     return client.post(
-        "/devices",
+        "/sensors",
         json={"name": name, "state": state},
     )
 
@@ -21,15 +21,15 @@ def create_rule(client: TestClient, name: str = "fan_control", enabled: bool = T
             "condition_measurement": "temperature",
             "condition_operator": ">",
             "condition_value": 25,
-            "action_type": "set_device_state",
-            "action_device": "fan",
+            "action_type": "set_sensor_state",
+            "action_sensor": "fan",
             "action_state": "ON",
         },
     )
 
 
 def test_post_rules_creates_rule(client: TestClient) -> None:
-    create_device(client, "fan", "off")
+    create_sensor(client, "fan", "off")
 
     response: Response = create_rule(client, "fan_control")
     assert response.status_code == 200
@@ -41,7 +41,7 @@ def test_post_rules_creates_rule(client: TestClient) -> None:
 
 
 def test_get_rules_returns_created_rule(client: TestClient) -> None:
-    create_device(client, "fan", "off")
+    create_sensor(client, "fan", "off")
     create_rule(client, "fan_control")
 
     response: Response = client.get("/rules")
@@ -55,7 +55,7 @@ def test_get_rules_returns_created_rule(client: TestClient) -> None:
 
 
 def test_get_rule_by_name_returns_rule(client: TestClient) -> None:
-    create_device(client, "fan", "off")
+    create_sensor(client, "fan", "off")
     create_rule(client, "fan_control")
 
     response: Response = client.get("/rules/fan_control")
@@ -65,11 +65,11 @@ def test_get_rule_by_name_returns_rule(client: TestClient) -> None:
     assert body["status"] == "ok"
     assert body["data"]["name"] == "fan_control"
     assert body["data"]["condition_measurement"] == "temperature"
-    assert body["data"]["action_device"] == "fan"
+    assert body["data"]["action_sensor"] == "fan"
 
 
 def test_disable_rule_prevents_automation(client: TestClient) -> None:
-    create_device(client, "fan", "off")
+    create_sensor(client, "fan", "off")
     create_rule(client, "fan_control")
 
     response: Response = client.post("/rules/fan_control/toggle", json={"enabled": False})
@@ -83,14 +83,14 @@ def test_disable_rule_prevents_automation(client: TestClient) -> None:
     )
     assert measure.status_code == 200
 
-    device_response: Response = client.get("/devices/fan")
-    assert device_response.status_code == 200
-    device_body: dict[str, Any] = device_response.json()
-    assert device_body["data"]["state"] == "OFF"
+    sensor_response: Response = client.get("/sensors/fan")
+    assert sensor_response.status_code == 200
+    sensor_body: dict[str, Any] = sensor_response.json()
+    assert sensor_body["data"]["state"] == "OFF"
 
 
 def test_measurement_triggers_enabled_rule(client: TestClient) -> None:
-    create_device(client, "fan", "off")
+    create_sensor(client, "fan", "off")
     create_rule(client, "fan_control")
 
     response: Response = client.post(
@@ -99,14 +99,14 @@ def test_measurement_triggers_enabled_rule(client: TestClient) -> None:
     )
     assert response.status_code == 200
 
-    device_response: Response = client.get("/devices/fan")
-    assert device_response.status_code == 200
-    device_body: dict[str, Any] = device_response.json()
-    assert device_body["data"]["state"] == "ON"
+    sensor_response: Response = client.get("/sensors/fan")
+    assert sensor_response.status_code == 200
+    sensor_body: dict[str, Any] = sensor_response.json()
+    assert sensor_body["data"]["state"] == "ON"
 
 
 def test_delete_rule_removes_it(client: TestClient) -> None:
-    create_device(client, "fan", "off")
+    create_sensor(client, "fan", "off")
     create_rule(client, "fan_control")
 
     delete_response: Response = client.delete("/rules/fan_control")

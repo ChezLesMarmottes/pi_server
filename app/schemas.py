@@ -1,7 +1,7 @@
 from datetime import datetime
 import math
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -23,7 +23,7 @@ class CaseInsensitiveStrEnum(str, Enum):
                     return member
         return None
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: object) -> Any:
         if isinstance(other, str):
             return self.value.lower() == other.lower()
         if isinstance(other, Enum):
@@ -34,7 +34,7 @@ class CaseInsensitiveStrEnum(str, Enum):
         return hash(self.value.lower())
 
 
-class DeviceState(CaseInsensitiveStrEnum):
+class SensorState(CaseInsensitiveStrEnum):
     OFF = "OFF"
     ON = "ON"
 
@@ -42,7 +42,7 @@ class ConditionType(CaseInsensitiveStrEnum):
     MEASUREMENT_THRESHOLD = "measurement_threshold"
 
 class ActionType(CaseInsensitiveStrEnum):
-    SET_DEVICE_STATE = "set_device_state"
+    SET_SENSOR_STATE = "set_sensor_state"
 
 class ComparisonOperator(CaseInsensitiveStrEnum):
     GREATER = ">"
@@ -50,10 +50,6 @@ class ComparisonOperator(CaseInsensitiveStrEnum):
     GREATER_EQUAL = ">="
     LESS_EQUAL = "<="
     EQUAL = "=="
-
-class SensorState(str, Enum):
-    INACTIVE = "INACTIVE"
-    ACTIVE = "ACTIVE"
 
 class SystemMode(str, Enum):
     DISARMED = "DISARMED"
@@ -82,18 +78,18 @@ class MeasurementOut(BaseModel):
     timestamp: datetime
 
 
-class DeviceIn(BaseModel):
+class SensorIn(BaseModel):
     name: str = Field(min_length=1)
-    state: DeviceState
+    state: SensorState
 
-class DeviceOut(BaseModel):
+class SensorOut(BaseModel):
     id: int
     name: str
-    state: DeviceState
+    state: SensorState
     timestamp: datetime
 
-class DeviceStateIn(BaseModel):
-    state: DeviceState
+class SensorStateIn(BaseModel):
+    state: SensorState
 
 
 class RuleIn(BaseModel):
@@ -104,8 +100,8 @@ class RuleIn(BaseModel):
     condition_operator: ComparisonOperator
     condition_value: float
     action_type: ActionType
-    action_device: str = Field(min_length=1)
-    action_state: DeviceState
+    action_sensor: str = Field(min_length=1)
+    action_state: SensorState
 
 class RuleOut(BaseModel):
     id: int
@@ -116,8 +112,8 @@ class RuleOut(BaseModel):
     condition_operator: ComparisonOperator
     condition_value: float
     action_type: ActionType
-    action_device: str = Field(min_length=1)
-    action_state: DeviceState
+    action_sensor: str = Field(min_length=1)
+    action_state: SensorState
     timestamp: datetime
 
 class RuleEnabledIn(BaseModel):

@@ -1,10 +1,11 @@
 import logging
+from typing import Any, Callable, cast
 
 from app.class_database import Database
 
 logger = logging.getLogger(__name__)
 
-OPERATORS = {
+OPERATORS: dict[str, Callable[[float, float], bool]] = {
     ">": lambda a, b: a > b,
     "<": lambda a, b: a < b,
     ">=": lambda a, b: a >= b,
@@ -13,11 +14,11 @@ OPERATORS = {
 }
 
 
-def evaluate_rule(rule: dict, measurement: dict) -> bool:
+def evaluate_rule(rule: dict[str, str | int | float], measurement: dict[str, str | int | float]) -> bool:
 
     if rule["condition_type"] != "measurement_threshold":
         return False
-    if rule["condition_measurement"].lower() != measurement["name"].lower():
+    if cast(str, rule["condition_measurement"]).lower() != cast(str, measurement["name"]).lower():
         return False
     
     operator = rule["condition_operator"]
@@ -26,9 +27,9 @@ def evaluate_rule(rule: dict, measurement: dict) -> bool:
         return False
     
     operator_fn = OPERATORS[operator]
-    return operator_fn(measurement["value"], rule["condition_value"])
+    return operator_fn(cast(float, measurement["value"]), cast(float, rule["condition_value"]))
 
-def evaluate_rule_retroactively(db: Database, rule: dict) -> int:
+def evaluate_rule_retroactively(db: Database, rule: dict[str, str | int | float]) -> int:
 
     count = 0
     measurements = db.fetch_all("SELECT * FROM measurements")
@@ -43,18 +44,18 @@ def evaluate_rule_retroactively(db: Database, rule: dict) -> int:
     
     return count
 
-def execute_rule_action(db: Database, rule: dict) -> None:
+def execute_rule_action(db: Database, rule: dict[str, str | int | float]) -> None:
   
-    if rule["action_type"] != "set_device_state":
+    if rule["action_type"] != "set_sensor_state":
         return
     
     cursor = db.execute(
-        "UPDATE devices SET state=? WHERE name=?",
-        (rule["action_state"], rule["action_device"])
+        "UPDATE sensors SET state=? WHERE name=?",
+        (rule["action_state"], rule["action_sensor"])
     )
     db.commit()
     
     if cursor.rowcount == 0:
-        logger.warning(f"Rule '{rule['name']}' executed but device '{rule['action_device']}' not found")
+        logger.warning(f"Rule '{rule['name']}' executed but sensor '{rule['action_sensor']}' not found")
     else:
         logger.info(f"Rule '{rule['name']}' executed")

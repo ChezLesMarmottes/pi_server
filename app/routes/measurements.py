@@ -24,7 +24,7 @@ def post_measurements(db: connection_dependency, measurement_in: MeasurementIn) 
         raise
 
     # Real-time: evaluate against all enabled rules
-    rules = db.fetch_all("SELECT * FROM rules WHERE enabled=?", (True,))
+    rules: list[dict[str, str | int | float]] = db.fetch_all("SELECT * FROM rules WHERE enabled=?", (True,))
     for rule in rules:
         if evaluate_rule(rule, record):
             execute_rule_action(db, rule)

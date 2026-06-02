@@ -31,7 +31,7 @@ class Database:
         """)
 
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS devices (
+        CREATE TABLE IF NOT EXISTS sensors (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
             state TEXT NOT NULL,
@@ -49,7 +49,7 @@ class Database:
             condition_operator TEXT NOT NULL,
             condition_value REAL NOT NULL,
             action_type TEXT NOT NULL,
-            action_device TEXT NOT NULL,
+            action_sensor TEXT NOT NULL,
             action_state TEXT NOT NULL,
             timestamp TEXT NOT NULL
         );

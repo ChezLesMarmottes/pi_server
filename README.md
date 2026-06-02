@@ -1,14 +1,14 @@
 # PI Server
 
-PI Server is a lightweight FastAPI-based REST API for managing **devices**, **measurements**, and **automation rules**. It's designed to run on a Raspberry Pi or any local Python environment with minimal resource requirements.
+PI Server is a lightweight FastAPI-based REST API for managing **sensors**, **measurements**, and **automation rules**. It's designed to run on a Raspberry Pi or any local Python environment with minimal resource requirements.
 
 ## Overview
 
 PI Server provides a complete automation system with these core capabilities:
 
-- 🔧 **Device Management**: Create and manage devices with state tracking (ON/OFF)
+- 🔧 **Sensor Management**: Create and manage sensors with state tracking (ON/OFF)
 - 📊 **Measurements**: Ingest sensor data (temperature, humidity, pressure, etc.) with structured storage
-- ⚙️ **Rules Engine**: Define conditional automation rules that trigger device actions based on measurement thresholds
+- ⚙️ **Rules Engine**: Define conditional automation rules that trigger sensor actions based on measurement thresholds
 - 🏥 **Health Monitoring**: Built-in health check endpoint for monitoring and orchestration
 - 🧪 **Comprehensive Testing**: Full test suite with 31+ tests covering all endpoints and edge cases
 
@@ -19,7 +19,7 @@ PI Server provides a complete automation system with these core capabilities:
 - **Automatic Schema Initialization** - SQLite database tables created on startup
 - **Real-time Automation** - Rules evaluate immediately when new measurements arrive
 - **Retroactive Rule Evaluation** - Rules can be evaluated against historical measurements
-- **Case-Insensitive State Management** - Device states and enums accept flexible input
+- **Case-Insensitive State Management** - Sensor states and enums accept flexible input
 - **Comprehensive Logging** - All operations logged for debugging and monitoring
 - **Production-Ready Tests** - 31 tests with proper fixtures and dependency injection
 - **Type-Safe Code** - Full type hints with zero type errors (verified with mypy)
@@ -79,7 +79,7 @@ pytest
 pytest -v
 
 # Run specific test file
-pytest tests/test_devices.py
+pytest tests/test_sensors.py
 
 # Run with coverage report
 pytest --cov=app
@@ -106,13 +106,13 @@ pi_server/
 │   ├── get_db.py               # Dependency injection for database
 │   ├── rule_engine.py          # Rule evaluation and automation logic
 │   └── routes/
-│       ├── devices.py          # Device endpoints
+│       ├── sensors.py          # Sensor endpoints
 │       ├── measurements.py     # Measurement endpoints
 │       ├── rules.py            # Rule endpoints
 │       └── health.py           # Health check endpoint
 ├── tests/
 │   ├── conftest.py            # Pytest configuration and fixtures
-│   ├── test_devices.py        # Device endpoint tests
+│   ├── test_sensors.py        # Sensor endpoint tests
 │   ├── test_measurements.py   # Measurement endpoint tests
 │   ├── test_rules.py          # Rule endpoint tests
 │   └── test_health.py         # Health endpoint tests
@@ -127,15 +127,15 @@ pi_server/
 
 The API stores all data in SQLite at `data/platform.db`. The database is automatically initialized on first startup.
 
-### `devices` Table
+### `sensors` Table
 
-Stores device state information.
+Stores sensor state information.
 
 | Column    | Type    | Constraints                    | Purpose                           |
 |-----------|---------|--------------------------------|-----------------------------------|
-| id        | INTEGER | PRIMARY KEY, AUTOINCREMENT     | Unique device identifier          |
-| name      | TEXT    | UNIQUE NOT NULL                | Unique device name (e.g., "pump") |
-| state     | TEXT    | NOT NULL                       | Device state ("ON" or "OFF")      |
+| id        | INTEGER | PRIMARY KEY, AUTOINCREMENT     | Unique sensor identifier          |
+| name      | TEXT    | UNIQUE NOT NULL                | Unique sensor name (e.g., "pump") |
+| state     | TEXT    | NOT NULL                       | Sensor state ("ON" or "OFF")      |
 | timestamp | TEXT    | NOT NULL                       | UTC ISO-8601 creation/update time |
 
 **Example:**
@@ -163,7 +163,7 @@ id=42, source="sensor-1", name="temperature", value=22.5, unit="C", timestamp="2
 
 ### `rules` Table
 
-Stores automation rules that trigger device actions.
+Stores automation rules that trigger sensor actions.
 
 | Column                | Type    | Constraints               | Purpose                                          |
 |-----------------------|---------|---------------------------|--------------------------------------------------|
@@ -174,16 +174,16 @@ Stores automation rules that trigger device actions.
 | condition_measurement | TEXT    | NOT NULL                  | Measurement name to watch (e.g., "temperature")  |
 | condition_operator    | TEXT    | NOT NULL                  | Comparison operator (">", "<", ">=", "<=", "==") |
 | condition_value       | REAL    | NOT NULL                  | Threshold value                                  |
-| action_type           | TEXT    | NOT NULL                  | Type of action ("set_device_state")              |
-| action_device         | TEXT    | NOT NULL                  | Target device name                               |
-| action_state          | TEXT    | NOT NULL                  | Target device state ("ON" or "OFF")              |
+| action_type           | TEXT    | NOT NULL                  | Type of action ("set_sensor_state")              |
+| action_sensor         | TEXT    | NOT NULL                  | Target sensor name                               |
+| action_state          | TEXT    | NOT NULL                  | Target sensor state ("ON" or "OFF")              |
 | timestamp             | TEXT    | NOT NULL                  | UTC ISO-8601 creation time                       |
 
 **Example:**
 ```
 id=1, name="fan_control", enabled=true, condition_type="measurement_threshold",
 condition_measurement="temperature", condition_operator=">", condition_value=25,
-action_type="set_device_state", action_device="fan", action_state="ON",
+action_type="set_sensor_state", action_sensor="fan", action_state="ON",
 timestamp="2024-06-02T10:00:00+00:00"
 ```
 
@@ -197,7 +197,7 @@ All endpoints return JSON responses. Most endpoints wrap data in an `ApiResponse
 ```json
 {
   "status": "ok",
-  "message": "device created",
+  "message": "sensor created",
   "data": {
     "id": 42,
     "name": "pump",
@@ -211,7 +211,7 @@ All endpoints return JSON responses. Most endpoints wrap data in an `ApiResponse
 ```json
 {
   "status": "error",
-  "message": "Device already exists",
+  "message": "Sensor already exists",
   "data": null
 }
 ```
@@ -238,11 +238,11 @@ curl http://localhost:8000/health
 
 ---
 
-## Device Endpoints
+## Sensor Endpoints
 
-### `POST /devices`
+### `POST /sensors`
 
-Create a new device.
+Create a new sensor.
 
 **Request Body:**
 ```json
@@ -253,14 +253,14 @@ Create a new device.
 ```
 
 **Parameters:**
-- `name` (string, required): Unique device name (min 1 character)
-- `state` (string, required): Device state - "ON" or "OFF" (case-insensitive)
+- `name` (string, required): Unique sensor name (min 1 character)
+- `state` (string, required): Sensor state - "ON" or "OFF" (case-insensitive)
 
 **Response:** `200 OK`
 ```json
 {
   "status": "ok",
-  "message": "device created",
+  "message": "sensor created",
   "data": {
     "id": 1
   }
@@ -268,31 +268,31 @@ Create a new device.
 ```
 
 **Errors:**
-- `400` - Device with this name already exists
+- `400` - Sensor with this name already exists
 - `422` - Invalid request (missing fields, invalid state)
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8000/devices \
+curl -X POST http://localhost:8000/sensors \
   -H "Content-Type: application/json" \
   -d '{"name": "pump", "state": "off"}'
 ```
 
 ---
 
-### `GET /devices`
+### `GET /sensors`
 
-List all devices with optional filtering and pagination.
+List all sensors with optional filtering and pagination.
 
 **Query Parameters:**
-- `name` (string, optional): Filter by device name (exact match)
+- `name` (string, optional): Filter by sensor name (exact match)
 - `limit` (integer, optional, default=20): Maximum results (1-99)
 
 **Response:** `200 OK`
 ```json
 {
   "status": "ok",
-  "message": "got devices",
+  "message": "got sensors",
   "data": [
     {
       "id": 1,
@@ -312,30 +312,30 @@ List all devices with optional filtering and pagination.
 
 **Examples:**
 ```bash
-# Get all devices
-curl http://localhost:8000/devices
+# Get all sensors
+curl http://localhost:8000/sensors
 
 # Filter by name
-curl http://localhost:8000/devices?name=pump
+curl http://localhost:8000/sensors?name=pump
 
 # Limit results
-curl http://localhost:8000/devices?limit=5
+curl http://localhost:8000/sensors?limit=5
 ```
 
 ---
 
-### `GET /devices/{name}`
+### `GET /sensors/{name}`
 
-Get a specific device by name.
+Get a specific sensor by name.
 
 **Path Parameters:**
-- `name` (string): Device name
+- `name` (string): Sensor name
 
 **Response:** `200 OK`
 ```json
 {
   "status": "ok",
-  "message": "got device pump",
+  "message": "got sensor pump",
   "data": {
     "id": 1,
     "name": "pump",
@@ -346,21 +346,21 @@ Get a specific device by name.
 ```
 
 **Errors:**
-- `404` - Device not found
+- `404` - Sensor not found
 
 **Example:**
 ```bash
-curl http://localhost:8000/devices/pump
+curl http://localhost:8000/sensors/pump
 ```
 
 ---
 
-### `POST /devices/{name}/state`
+### `POST /sensors/{name}/state`
 
-Update a device's state.
+Update a sensor's state.
 
 **Path Parameters:**
-- `name` (string): Device name
+- `name` (string): Sensor name
 
 **Request Body:**
 ```json
@@ -384,12 +384,12 @@ Update a device's state.
 ```
 
 **Errors:**
-- `404` - Device not found
+- `404` - Sensor not found
 - `422` - Invalid state value
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8000/devices/pump/state \
+curl -X POST http://localhost:8000/sensors/pump/state \
   -H "Content-Type: application/json" \
   -d '{"state": "on"}'
 ```
@@ -540,8 +540,8 @@ Create a new automation rule.
   "condition_measurement": "temperature",
   "condition_operator": ">",
   "condition_value": 25,
-  "action_type": "set_device_state",
-  "action_device": "fan",
+  "action_type": "set_sensor_state",
+  "action_sensor": "fan",
   "action_state": "ON"
 }
 ```
@@ -553,9 +553,9 @@ Create a new automation rule.
 - `condition_measurement` (string, required): Name of measurement to monitor (min 1 character)
 - `condition_operator` (string, required): Comparison operator: ">", "<", ">=", "<=", "=="
 - `condition_value` (number, required): Threshold value to compare against
-- `action_type` (string, required): Currently only "set_device_state" supported
-- `action_device` (string, required): Target device name (min 1 character)
-- `action_state` (string, required): Target device state - "ON" or "OFF"
+- `action_type` (string, required): Currently only "set_sensor_state" supported
+- `action_sensor` (string, required): Target sensor name (min 1 character)
+- `action_state` (string, required): Target sensor state - "ON" or "OFF"
 
 **Response:** `200 OK`
 ```json
@@ -591,8 +591,8 @@ curl -X POST http://localhost:8000/rules \
     "condition_measurement": "temperature",
     "condition_operator": ">",
     "condition_value": 25,
-    "action_type": "set_device_state",
-    "action_device": "fan",
+    "action_type": "set_sensor_state",
+    "action_sensor": "fan",
     "action_state": "ON"
   }'
 ```
@@ -621,8 +621,8 @@ List all rules with optional filtering and pagination.
       "condition_measurement": "temperature",
       "condition_operator": ">",
       "condition_value": 25,
-      "action_type": "set_device_state",
-      "action_device": "fan",
+      "action_type": "set_sensor_state",
+      "action_sensor": "fan",
       "action_state": "ON",
       "timestamp": "2024-06-02T10:00:00+00:00"
     }
@@ -657,8 +657,8 @@ Get a specific rule by name.
     "condition_measurement": "temperature",
     "condition_operator": ">",
     "condition_value": 25,
-    "action_type": "set_device_state",
-    "action_device": "fan",
+    "action_type": "set_sensor_state",
+    "action_sensor": "fan",
     "action_state": "ON",
     "timestamp": "2024-06-02T10:00:00+00:00"
   }
@@ -748,8 +748,8 @@ curl -X DELETE http://localhost:8000/rules/fan_control
 ### Complete Workflow Example
 
 ```bash
-# 1. Create devices
-curl -X POST http://localhost:8000/devices \
+# 1. Create sensors
+curl -X POST http://localhost:8000/sensors \
   -H "Content-Type: application/json" \
   -d '{"name": "fan", "state": "off"}'
 
@@ -763,8 +763,8 @@ curl -X POST http://localhost:8000/rules \
     "condition_measurement": "temperature",
     "condition_operator": ">",
     "condition_value": 25,
-    "action_type": "set_device_state",
-    "action_device": "fan",
+    "action_type": "set_sensor_state",
+    "action_sensor": "fan",
     "action_state": "ON"
   }'
 
@@ -778,8 +778,8 @@ curl -X POST http://localhost:8000/measurements \
     "unit": "C"
   }'
 
-# 4. Check device state (should be ON now)
-curl http://localhost:8000/devices/fan
+# 4. Check sensor state (should be ON now)
+curl http://localhost:8000/sensors/fan
 
 # 5. Get latest measurements
 curl http://localhost:8000/measurements/latest
@@ -865,7 +865,7 @@ The project includes comprehensive tests covering:
 
 ### Test Files
 
-- `test_devices.py` - Device CRUD and state management
+- `test_sensors.py` - Sensor CRUD and state management
 - `test_measurements.py` - Measurement storage and queries
 - `test_rules.py` - Rule creation, evaluation, and automation
 - `test_health.py` - Health check endpoint
@@ -880,10 +880,10 @@ pytest
 pytest -v
 
 # Specific file
-pytest tests/test_devices.py
+pytest tests/test_sensors.py
 
 # Single test
-pytest tests/test_devices.py::test_post_devices_returns_created_id
+pytest tests/test_sensors.py::test_post_sensors_returns_created_id
 
 # With coverage
 pytest --cov=app --cov-report=html
@@ -897,26 +897,26 @@ pytest --cov=app --cov-report=html
 
 1. **Single condition type** - Rules only support measurement threshold conditions. Future versions could support:
    - Time-based conditions (e.g., "every 5 minutes")
-   - Device state conditions (e.g., "if device X is ON")
+   - Sensor state conditions (e.g., "if sensor X is ON")
    - Logical operators (AND, OR, NOT)
 
-2. **Single action type** - Rules only support device state changes. Future versions could support:
+2. **Single action type** - Rules only support sensor state changes. Future versions could support:
    - HTTP webhooks
    - MQTT publishing
    - Email notifications
    - Multiple sequential actions
 
-3. **No authentication/authorization** - Anyone with network access can control devices
+3. **No authentication/authorization** - Anyone with network access can control sensors
 
 4. **No persistence of action history** - Triggered actions aren't logged or queryable
 
 5. **SQLite only** - Not suitable for high-concurrency scenarios. PostgreSQL support could be added.
 
-6. **No foreign key constraints** - Rules can reference non-existent devices/measurements
+6. **No foreign key constraints** - Rules can reference non-existent sensors/measurements
 
 ### Planned Improvements
 
-- [ ] Add UPDATE/DELETE endpoints for devices and measurements
+- [ ] Add UPDATE/DELETE endpoints for sensors and measurements
 - [ ] Add authentication layer (API keys or JWT)
 - [ ] Add action history logging
 - [ ] Add support for multiple condition types and operators
@@ -1028,7 +1028,7 @@ If deploying at larger scale:
 
 ### Database Query Performance
 
-- Device and rule lookups are O(1) by name (indexed)
+- Sensor and rule lookups are O(1) by name (indexed)
 - Measurement queries are O(n) but limited by pagination
 - Latest measurement query could be optimized with database window functions
 
@@ -1050,7 +1050,7 @@ For issues, questions, or suggestions, please open an issue in the repository.
 
 ### Version 1.0.0 (2024-06-02)
 - Initial release
-- Device management with state tracking
+- Sensor management with state tracking
 - Measurement ingestion and querying
 - Automation rules with real-time and retroactive evaluation
 - Comprehensive test coverage
@@ -1063,10 +1063,10 @@ For issues, questions, or suggestions, please open an issue in the repository.
 | Endpoint                | Method | Purpose                         |
 |-------------------------|--------|---------------------------------|
 | `/health`               | GET    | Health check                    |
-| `/devices`              | POST   | Create device                   |
-| `/devices`              | GET    | List devices                    |
-| `/devices/{name}`       | GET    | Get device                      |
-| `/devices/{name}/state` | POST   | Update device state             |
+| `/sensors`              | POST   | Create sensor                   |
+| `/sensors`              | GET    | List sensors                    |
+| `/sensors/{name}`       | GET    | Get sensor                      |
+| `/sensors/{name}/state` | POST   | Update sensor state             |
 | `/measurements`         | POST   | Store measurement               |
 | `/measurements`         | GET    | List measurements               |
 | `/measurements/latest`  | GET    | Get latest per measurement name |
