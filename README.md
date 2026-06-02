@@ -131,14 +131,14 @@ The API stores all data in SQLite at `data/platform.db`. The database is automat
 
 Stores device state information.
 
-+-----------+---------+--------------------------------+-----------------------------------+
+|-----------|---------|--------------------------------|-----------------------------------|
 | Column    | Type    | Constraints                    | Purpose                           |
-+-----------+---------+--------------------------------+-----------------------------------|
+|-----------|---------|--------------------------------|-----------------------------------|
 | id        | INTEGER | PRIMARY KEY, AUTOINCREMENT     | Unique device identifier          |
 | name      | TEXT    | UNIQUE NOT NULL                | Unique device name (e.g., "pump") |
 | state     | TEXT    | NOT NULL                       | Device state ("ON" or "OFF")      |
 | timestamp | TEXT    | NOT NULL                       | UTC ISO-8601 creation/update time |
-+-----------+---------+--------------------------------+-----------------------------------+
+|-----------|---------|--------------------------------|-----------------------------------|
 
 **Example:**
 ```
@@ -149,16 +149,16 @@ id=1, name="pump", state="OFF", timestamp="2024-06-02T10:30:00+00:00"
 
 Stores sensor readings and measurement data.
 
-+-----------+---------+---------------------------+---------------------------------------------+
+|-----------|---------|---------------------------|---------------------------------------------|
 | Column    | Type    | Constraints               | Purpose                                     |
-+-----------+---------+---------------------------+---------------------------------------------+
+|-----------|---------|---------------------------|---------------------------------------------|
 | id        | INTEGER | PRIMARY KEY AUTOINCREMENT | Unique measurement identifier               |
 | source    | TEXT    | NOT NULL                  | Sensor/source identifier (e.g., "sensor-1") |
 | name      | TEXT    | NOT NULL                  | Measurement type (e.g., "temperature")      |
 | value     | REAL    | NOT NULL                  | Numeric measurement value                   |
 | unit      | TEXT    | (optional)                | Unit of measurement (e.g., "°C")            |
 | timestamp | TEXT    | NOT NULL                  | UTC ISO-8601 measurement time               |
-+-----------+---------+---------------------------+---------------------------------------------+
+|-----------|---------|---------------------------|---------------------------------------------|
 
 **Example:**
 ```
@@ -169,9 +169,9 @@ id=42, source="sensor-1", name="temperature", value=22.5, unit="C", timestamp="2
 
 Stores automation rules that trigger device actions.
 
-+-----------------------+---------+---------------------------+--------------------------------------------------+
+|-----------------------|---------|---------------------------|--------------------------------------------------|
 | Column                | Type    | Constraints               | Purpose                                          |
-+-----------------------+---------+---------------------------+--------------------------------------------------+
+|-----------------------|---------|---------------------------|--------------------------------------------------|
 | id                    | INTEGER | PRIMARY KEY AUTOINCREMENT | Unique rule identifier                           |
 | name                  | TEXT    | UNIQUE NOT NULL           | Unique rule name                                 |
 | enabled               | BOOLEAN | NOT NULL                  | Whether rule is active                           |
@@ -183,7 +183,7 @@ Stores automation rules that trigger device actions.
 | action_device         | TEXT    | NOT NULL                  | Target device name                               |
 | action_state          | TEXT    | NOT NULL                  | Target device state ("ON" or "OFF")              |
 | timestamp             | TEXT    | NOT NULL                  | UTC ISO-8601 creation time                       |
-+-----------------------+---------+---------------------------+--------------------------------------------------+
+|-----------------------|---------|---------------------------|--------------------------------------------------|
 
 **Example:**
 ```
@@ -1066,9 +1066,9 @@ For issues, questions, or suggestions, please open an issue in the repository.
 
 ## Quick Reference
 
-+-------------------------+--------+---------------------------------+
+|-------------------------|--------|---------------------------------|
 | Endpoint                | Method | Purpose                         |
-+-------------------------+--------+---------------------------------+
+|-------------------------|--------|---------------------------------|
 | `/health`               | GET    | Health check                    |
 | `/devices`              | POST   | Create device                   |
 | `/devices`              | GET    | List devices                    |
@@ -1082,4 +1082,4 @@ For issues, questions, or suggestions, please open an issue in the repository.
 | `/rules/{name}`         | GET    | Get rule                        |
 | `/rules/{name}/toggle`  | POST   | Enable/disable rule             |
 | `/rules/{name}`         | DELETE | Delete rule                     |
-+-------------------------+--------+---------------------------------+
+|-------------------------|--------|---------------------------------|
