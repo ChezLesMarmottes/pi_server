@@ -15,14 +15,14 @@ logger: logging.Logger = logging.getLogger(__name__)
 @measurements_router.post("", response_model=ApiResponse[CreateData])
 def post_measurements(db: connection_dependency, measurement_in: MeasurementIn) -> dict[str, str | dict[str, int]]:
 
-    record: dict[str, str | int | float | datetime] = {}
+    record: dict[str, str | int | float] = {}
 
     record.update(measurement_in.model_dump(mode="json"))
     record["timestamp"] = datetime.now(timezone.utc).isoformat()
 
     columns: str = ", ".join(record.keys())
     placeholders: str = ", ".join(["?"] * len(record))
-    values: tuple[str | int | float | datetime, ...] = tuple(record.values())
+    values: tuple[str | int | float, ...] = tuple(record.values())
 
     query: str = f"INSERT INTO measurements ({columns}) VALUES ({placeholders});"
 
@@ -38,12 +38,12 @@ def post_measurements(db: connection_dependency, measurement_in: MeasurementIn) 
     
     db.commit()
 
-    result: dict[str, str | dict[str, int]] = {"message": "measurement stored", "data": {"id": row_id}}
+    result: dict[str, str | dict[str, int]] = {"status": "ok", "message": "measurement stored", "data": {"id": row_id}}
 
     return result
 
 @measurements_router.get("", response_model=ApiResponse[list[MeasurementOut]])
-def get_measurements(db: connection_dependency, name: str | None = None, limit: int = 20) -> dict[str, list[MeasurementOut]]:
+def get_measurements(db: connection_dependency, name: str | None = None, limit: int = 20) -> dict[str, str | list[MeasurementOut]]:
 
     conditions: list[str] = []
     values: list[str | int] = []
@@ -69,12 +69,12 @@ def get_measurements(db: connection_dependency, name: str | None = None, limit: 
         logger.exception("Failed query: Couldn't fetch all values from table")
         raise
     
-    result: dict[str, list[MeasurementOut]] = {"data": [MeasurementOut(**row) for row in rows]}
+    result: dict[str, str | list[MeasurementOut]] = {"status": "ok", "message": "got measurements", "data": [MeasurementOut(**row) for row in rows]}
 
     return result
 
 @measurements_router.get("/latest", response_model=ApiResponse[list[MeasurementOut]])
-def get_measurements_latest(db: connection_dependency) -> dict[str, list[MeasurementOut]]:
+def get_measurements_latest(db: connection_dependency) -> dict[str, str | list[MeasurementOut]]:
 
     try:
         rows: list[dict[str, Any]] = db.fetch_all("SELECT * FROM measurements WHERE id IN (SELECT MAX(id) FROM measurements GROUP BY name) ORDER BY id DESC")
@@ -82,6 +82,6 @@ def get_measurements_latest(db: connection_dependency) -> dict[str, list[Measure
         logger.exception("Failed query: Couldn't select latest from table measurements")
         raise
 
-    result: dict[str, list[MeasurementOut]] = {"data": [MeasurementOut(**row) for row in rows]}
+    result: dict[str, str | list[MeasurementOut]] = {"status": "ok", "message": "got latest measurements", "data": [MeasurementOut(**row) for row in rows]}
 
     return result

@@ -1,7 +1,7 @@
 from datetime import datetime
 import math
 from enum import Enum
-from typing import Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -15,7 +15,7 @@ class ApiResponse(BaseModel, Generic[T]):
 
 class CaseInsensitiveStrEnum(str, Enum):
     @classmethod
-    def _missing_(cls, value: object) -> Optional["CaseInsensitiveStrEnum"]:
+    def _missing_(cls, value: object) -> "CaseInsensitiveStrEnum | None":
         if isinstance(value, str):
             normalized = value.strip().lower()
             for member in cls:
@@ -65,10 +65,10 @@ class MeasurementIn(BaseModel):
     source: str = Field(min_length=1)
     name: str = Field(min_length=1)
     value: float
-    unit: Optional[str] = None
+    unit: str | None = None
 
     @field_validator("value")
-    def check_finite(cls, v: int | float) -> int | float:
+    def check_finite(cls, v: float) -> float:
         if not math.isfinite(v):
             raise ValueError("value must be finite")
         return v
@@ -78,7 +78,7 @@ class MeasurementOut(BaseModel):
     source: str
     name: str
     value: float
-    unit: Optional[str] = None
+    unit: str | None = None
     timestamp: datetime
 
 

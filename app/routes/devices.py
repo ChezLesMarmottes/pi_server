@@ -15,14 +15,14 @@ logger: logging.Logger = logging.getLogger(__name__)
 @devices_router.post("", response_model=ApiResponse[CreateData])
 def post_devices(db: connection_dependency, device_in: DeviceIn) -> dict[str, str | dict[str, int]]:
 
-    record: dict[str, str | int | float | datetime] = {}
+    record: dict[str, str | int | float] = {}
 
     record.update(device_in.model_dump(mode="json"))
     record["timestamp"] = datetime.now(timezone.utc).isoformat()
 
     columns: str = ", ".join(record.keys())
     placeholders: str = ", ".join(["?"] * len(record))
-    values: tuple[str | int | float | datetime, ...] = tuple(record.values())
+    values: tuple[str | int | float, ...] = tuple(record.values())
 
     query: str = f"INSERT INTO devices ({columns}) VALUES ({placeholders});"
 
@@ -41,12 +41,12 @@ def post_devices(db: connection_dependency, device_in: DeviceIn) -> dict[str, st
     
     db.commit()
 
-    result: dict[str, str | dict[str, int]] = {"message": "device created", "data": {"id": row_id}}
+    result: dict[str, str | dict[str, int]] = {"status": "ok", "message": "device created", "data": {"id": row_id}}
 
     return result
 
 @devices_router.get("", response_model=ApiResponse[list[DeviceOut]])
-def get_devices(db: connection_dependency, name: str | None = None, limit: int = 20) -> dict[str, list[DeviceOut]]:
+def get_devices(db: connection_dependency, name: str | None = None, limit: int = 20) -> dict[str, str | list[DeviceOut]]:
 
     conditions: list[str] = []
     values: list[str | int] = []
@@ -72,16 +72,16 @@ def get_devices(db: connection_dependency, name: str | None = None, limit: int =
         logger.exception("Failed query: Couldn't fetch all values from table")
         raise
     
-    result: dict[str, list[DeviceOut]] = {"data": [DeviceOut(**row) for row in rows]}
+    result: dict[str, str | list[DeviceOut]] = {"status": "ok", "message": "got devices", "data": [DeviceOut(**row) for row in rows]}
 
     return result
 
 @devices_router.get("/{name}", response_model=ApiResponse[DeviceOut])
-def get_devices_name(db: connection_dependency, name: str) -> dict[str, DeviceOut]:
+def get_devices_name(db: connection_dependency, name: str) -> dict[str, str | DeviceOut]:
 
     try:
         row: dict[str, Any] | None = db.fetch_one(
-            "SELECT * FROM devices WHERE name=? ORDER BY id DESC LIMIT 1",
+            "SELECT * FROM devices WHERE name=?",
             (name,)
         )
     except Exception:
@@ -91,7 +91,7 @@ def get_devices_name(db: connection_dependency, name: str) -> dict[str, DeviceOu
     if not row:
         raise HTTPException(404, detail="Device not found")
 
-    result = {"data": DeviceOut(**row)}
+    result: dict[str, str | DeviceOut] = {"status": "ok", "message": f"got device {name}", "data": DeviceOut(**row)}
 
     return result
 
@@ -112,6 +112,6 @@ def post_devices_name_state(db: connection_dependency, name: str, state_in: Devi
     
     db.commit()
 
-    result: dict[str, str | DeviceOut] = {"message": "state updated", "data": DeviceOut(**row)}
+    result: dict[str, str | DeviceOut] = {"status": "ok", "message": "state updated", "data": DeviceOut(**row)}
 
     return result

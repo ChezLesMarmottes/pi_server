@@ -57,7 +57,7 @@ class Database:
 
         self.connection.commit()
 
-    def execute(self, query: str, values: tuple[str | int | float | datetime, ...] | None = None) -> sqlite3.Cursor:
+    def execute(self, query: str, values: tuple[str | int | float, ...] | None = None) -> sqlite3.Cursor:
         cursor: sqlite3.Cursor = self.connection.cursor()
         if values is not None:
             cursor.execute(query, values)

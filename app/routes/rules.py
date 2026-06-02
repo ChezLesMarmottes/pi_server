@@ -15,14 +15,14 @@ logger: logging.Logger = logging.getLogger(__name__)
 @rules_router.post("", response_model=ApiResponse[CreateData])
 def post_rules(db: connection_dependency, rule_in: RuleIn) -> dict[str, str | dict[str, int]]:
 
-    record: dict[str, str | int | float | datetime] = {}
+    record: dict[str, str | int | float] = {}
 
     record.update(rule_in.model_dump(mode="json"))
     record["timestamp"] = datetime.now(timezone.utc).isoformat()
 
     columns: str = ", ".join(record.keys())
     placeholders: str = ", ".join(["?"] * len(record))
-    values: tuple[str | int | float | datetime, ...] = tuple(record.values())
+    values: tuple[str | int | float, ...] = tuple(record.values())
 
     query: str = f"INSERT INTO rules ({columns}) VALUES ({placeholders});"
 
@@ -41,12 +41,12 @@ def post_rules(db: connection_dependency, rule_in: RuleIn) -> dict[str, str | di
     
     db.commit()
 
-    result: dict[str, str | dict[str, int]] = {"message": "rule created", "data": {"id": row_id}}
+    result: dict[str, str | dict[str, int]] = {"status": "ok", "message": "rule created", "data": {"id": row_id}}
 
     return result
 
 @rules_router.get("", response_model=ApiResponse[list[RuleOut]])
-def get_rules(db: connection_dependency, name: str | None = None, limit: int = 20) -> dict[str, list[RuleOut]]:
+def get_rules(db: connection_dependency, name: str | None = None, limit: int = 20) -> dict[str, str | list[RuleOut]]:
 
     conditions: list[str] = []
     values: list[str | int] = []
@@ -72,16 +72,16 @@ def get_rules(db: connection_dependency, name: str | None = None, limit: int = 2
         logger.exception("Failed query: Couldn't fetch all values from table")
         raise
     
-    result: dict[str, list[RuleOut]] = {"data": [RuleOut(**row) for row in rows]}
+    result: dict[str, str | list[RuleOut]] = {"status": "ok", "message": "got rules", "data": [RuleOut(**row) for row in rows]}
 
     return result
 
 @rules_router.get("/{name}", response_model=ApiResponse[RuleOut])
-def get_rules_name(db: connection_dependency, name: str) -> dict[str, RuleOut]:
+def get_rules_name(db: connection_dependency, name: str) -> dict[str, str | RuleOut]:
 
     try:
         row: dict[str, Any] | None = db.fetch_one(
-            "SELECT * FROM rules WHERE name=? ORDER BY id DESC LIMIT 1",
+            "SELECT * FROM rules WHERE name=?",
             (name,)
         )
     except Exception:
@@ -91,7 +91,7 @@ def get_rules_name(db: connection_dependency, name: str) -> dict[str, RuleOut]:
     if not row:
         raise HTTPException(404, detail="Rule not found")
 
-    result = {"data": RuleOut(**row)}
+    result: dict[str, str | RuleOut] = {"status": "ok", "message": f"got rule {name}", "data": RuleOut(**row)}
 
     return result
 
@@ -112,17 +112,17 @@ def post_name_toggle(db: connection_dependency, name: str, enabled: RuleEnabledI
     
     db.commit()
 
-    result: dict[str, str | RuleOut] = {"message": "toggle updated", "data": RuleOut(**row)}
+    result: dict[str, str | RuleOut] = {"status": "ok", "message": "toggle updated", "data": RuleOut(**row)}
 
     return result
 
 @rules_router.delete("/{name}", response_model=ApiResponse[None])
-def delete_name(db: connection_dependency, name: str) -> dict[str, str]:
+def delete_name(db: connection_dependency, name: str) -> dict[str, str | None]:
 
     try:
         cursor = db.execute("DELETE FROM rules WHERE name=?", (name,))
     except Exception:
-        logger.exception("Failed query: Couldn't select %s from table rules", name)
+        logger.exception("Failed query: Couldn't delete %s from table rules", name)
         raise
 
     if cursor.rowcount == 0:
@@ -130,6 +130,6 @@ def delete_name(db: connection_dependency, name: str) -> dict[str, str]:
     
     db.commit()
 
-    result = {"message": f"rule {name} deleted"}
+    result: dict[str, str | None] = {"status": "ok", "message": f"rule {name} deleted", "data": None}
 
     return result
