@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from typing import Any, Callable, cast
 
 from app.class_database import Database
@@ -49,13 +50,38 @@ def execute_rule_action(db: Database, rule: dict[str, str | int | float]) -> Non
     if rule["action_type"] != "set_sensor_state":
         return
     
-    cursor = db.execute(
-        "UPDATE sensors SET state=? WHERE name=?",
-        (rule["action_state"], rule["action_sensor"])
+    # Look up sensor by name to get its ID
+    sensor_row: dict[str, Any] | None = db.fetch_one(
+        "SELECT id FROM sensors WHERE name=?",
+        (rule["action_sensor"],)
     )
-    db.commit()
     
-    if cursor.rowcount == 0:
+    if sensor_row is None:
         logger.warning(f"Rule '{rule['name']}' executed but sensor '{rule['action_sensor']}' not found")
-    else:
-        logger.info(f"Rule '{rule['name']}' executed")
+        return
+    
+    sensor_id: int = sensor_row["id"]
+    action: str = cast(str, rule["action_state"])
+    
+    # Create a command for the hardware bridge to execute
+    try:
+        cursor = db.execute(
+            "INSERT INTO commands (sensor_id, action, status, timestamp) VALUES (?, ?, ?, ?)",
+            (sensor_id, action, "pending", datetime.now(timezone.utc).isoformat())
+        )
+        db.commit()
+        logger.info(f"Rule '{rule['name']}' created command for sensor '{rule['action_sensor']}' with action '{action}'")
+    except Exception as e:
+        logger.error(f"Failed to create command from rule: {e}")
+        raise
+    
+    # Also update sensor state for backward compatibility (for non-Arduino sensors)
+    try:
+        db.execute(
+            "UPDATE sensors SET state=? WHERE name=?",
+            (action, rule["action_sensor"])
+        )
+        db.commit()
+        logger.info(f"Rule '{rule['name']}' updated sensor state to {action}")
+    except Exception as e:
+        logger.error(f"Failed to update sensor state: {e}")

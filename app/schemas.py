@@ -44,6 +44,16 @@ class ConditionType(CaseInsensitiveStrEnum):
 class ActionType(CaseInsensitiveStrEnum):
     SET_SENSOR_STATE = "set_sensor_state"
 
+class CommandStatus(CaseInsensitiveStrEnum):
+    PENDING = "pending"
+    SENT = "sent"
+    ACKNOWLEDGED = "acknowledged"
+    FAILED = "failed"
+
+class PinType(CaseInsensitiveStrEnum):
+    DIGITAL = "digital"
+    ANALOG = "analog"
+
 class ComparisonOperator(CaseInsensitiveStrEnum):
     GREATER = ">"
     LESS = "<"
@@ -122,3 +132,33 @@ class RuleEnabledIn(BaseModel):
 
 class CreateData(BaseModel):
     id: int
+
+
+class HardwareConfigIn(BaseModel):
+    sensor_id: int
+    arduino_pin: str = Field(min_length=1)
+    pin_type: PinType
+    read_interval_ms: int = Field(gt=0)
+
+
+class HardwareConfigOut(BaseModel):
+    id: int
+    sensor_id: int
+    arduino_pin: str
+    pin_type: PinType
+    read_interval_ms: int
+    timestamp: datetime
+
+
+class CommandIn(BaseModel):
+    sensor_id: int
+    action: str = Field(min_length=1)
+
+
+class CommandOut(BaseModel):
+    id: int
+    sensor_id: int
+    action: str
+    status: CommandStatus
+    timestamp: datetime
+    acknowledged_at: datetime | None = None

@@ -55,6 +55,31 @@ class Database:
         );
         """)
 
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS hardware_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sensor_id INTEGER NOT NULL,
+            arduino_pin TEXT NOT NULL,
+            pin_type TEXT NOT NULL,
+            read_interval_ms INTEGER NOT NULL,
+            timestamp TEXT NOT NULL,
+            FOREIGN KEY(sensor_id) REFERENCES sensors(id),
+            UNIQUE(sensor_id)
+        );
+        """)
+
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS commands (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sensor_id INTEGER NOT NULL,
+            action TEXT NOT NULL,
+            status TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            acknowledged_at TEXT,
+            FOREIGN KEY(sensor_id) REFERENCES sensors(id)
+        );
+        """)
+
         self.connection.commit()
 
     def execute(self, query: str, values: tuple[str | int | float, ...] | None = None) -> sqlite3.Cursor:
