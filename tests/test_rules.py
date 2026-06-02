@@ -88,7 +88,6 @@ def test_disable_rule_prevents_automation(client: TestClient) -> None:
     device_body: dict[str, Any] = device_response.json()
     assert device_body["data"]["state"] == "OFF"
 
-
 #---------------------------------------------------------------------------------------#
 #       LATER RULE_ENGINE FUNCTIONALITY OF RULES TRIGGERING BASED ON MEASUREMENTS       #
 #---------------------------------------------------------------------------------------#
