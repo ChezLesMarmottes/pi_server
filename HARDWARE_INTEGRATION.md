@@ -11,7 +11,7 @@ Data flows in two directions:
 ```
 1. MEASUREMENTS (Arduino → API):
    Arduino (reads sensor pins) 
-     → Serial Port (/dev/ttyUSB0) 
+     → Serial Port (/dev/ttyACM0) 
      → Hardware Bridge (serial_bridge.py) 
      → HTTP POST to API (/measurements endpoint)
      → Database
@@ -64,13 +64,14 @@ The API is now running and listening for HTTP requests on `http://localhost:8000
 **How to do it:** Open a new terminal and run these commands (replace sensor names with yours):
 
 ```bash
-# Create a temperature sensor
+# Create a temperature sensor (DHT11)
 curl -X POST http://localhost:8000/sensors \
   -H "Content-Type: application/json" \
-  -d '{"name": "temperature_sensor_1", "state": "OFF"}'
+  -d '{"name": "temperature_dht11_1", "state": "OFF"}'
 ```
 
 **Expected response:**
+
 ```json
 {
   "status": "ok",
@@ -82,6 +83,7 @@ curl -X POST http://localhost:8000/sensors \
 **Important:** Note the returned `id`. In this example, it's `1`. You'll use this ID in your Arduino code.
 
 Create any additional sensors you need:
+
 ```bash
 # Create an LED actuator (something you want to control)
 curl -X POST http://localhost:8000/sensors \
@@ -90,6 +92,7 @@ curl -X POST http://localhost:8000/sensors \
 ```
 
 Expected response:
+
 ```json
 {
   "status": "ok",
@@ -99,10 +102,11 @@ Expected response:
 ```
 
 **Common sensors:**
-- Temperature sensor → `"name": "temperature_sensor_1"`
-- LED → `"name": "led_1"`
-- Motion sensor → `"name": "motion_detector"`
-- Fan → `"name": "cooling_fan"`
+
+* Temperature sensor → `"name": "temperature_dht11_1"`
+* LED → `"name": "led_1"`
+* Motion sensor → `"name": "motion_detector"`
+* Fan → `"name": "cooling_fan"`
 
 ---
 
@@ -111,25 +115,27 @@ Expected response:
 **What this does:** Tells the system which Arduino pins your sensors are connected to. This is the bridge between logical sensors and physical pins.
 
 **Why it matters:** The hardware bridge needs to know:
-- Which pin is the temperature sensor on? (A0, A1, D2, etc.)
-- Is it analog or digital?
-- How often should it be read?
+
+* Which pin is the temperature sensor on? (A0, A1, D2, etc.)
+* Is it analog or digital?
+* How often should it be read?
 
 **How to do it:** For each sensor, create a hardware config entry using its ID from Step 2:
 
 ```bash
-# Example: temperature_sensor_1 (id=1) is connected to pin A0 (analog), read every 5 seconds
+# Example: temperature_dht11_1 (id=1) is connected to pin D2 (digital), read every 5 seconds
 curl -X POST http://localhost:8000/hardware \
   -H "Content-Type: application/json" \
   -d '{
     "sensor_id": 1,
-    "arduino_pin": "A0",
-    "pin_type": "analog",
+    "arduino_pin": "D2",
+    "pin_type": "digital",
     "read_interval_ms": 5000
   }'
 ```
 
 **Expected response:**
+
 ```json
 {
   "status": "ok",
@@ -139,12 +145,14 @@ curl -X POST http://localhost:8000/hardware \
 ```
 
 **Field explanations:**
-- `sensor_id`: The ID from Step 2 (e.g., `1` for temperature_sensor_1)
-- `arduino_pin`: The physical Arduino pin (A0-A5 for analog, D0-D13 for digital)
-- `pin_type`: Either `"analog"` or `"digital"`
-- `read_interval_ms`: How often to read this pin in milliseconds (1000 = 1 second, 5000 = 5 seconds)
+
+* `sensor_id`: The ID from Step 2 (e.g., `1` for temperature_dht11_1)
+* `arduino_pin`: The physical Arduino pin (A0-A5 for analog, D0-D53 for digital on Mega)
+* `pin_type`: Either `"analog"` or `"digital"`
+* `read_interval_ms`: How often to read this pin in milliseconds (1000 = 1 second, 5000 = 5 seconds)
 
 **Add another hardware config for your LED:**
+
 ```bash
 # Example: led_1 (id=2) is on digital pin 5, read interval is 1 second
 curl -X POST http://localhost:8000/hardware \
@@ -158,6 +166,7 @@ curl -X POST http://localhost:8000/hardware \
 ```
 
 **Verify your setup so far:**
+
 ```bash
 # List all hardware configs
 curl http://localhost:8000/hardware
@@ -179,63 +188,69 @@ You should see both configs listed.
 **How to do it:** Use the Arduino IDE and upload this code to your board. **Replace the pin numbers and sensor IDs with yours from Steps 2 and 3:**
 
 ```cpp
-// ====== CONFIGURATION (Change these!) ======
-#define TEMP_SENSOR_PIN A0          // Physical pin where temperature sensor is connected
-#define LED_PIN 5                   // Physical pin where LED is connected
-#define SENSOR_ID_TEMP 1            // Sensor ID from Step 2 for temperature
-#define SENSOR_ID_LED 2             // Sensor ID from Step 2 for LED
-#define BAUD_RATE 9600              // Must match hardware bridge setting
+#include "DHT.h"
+
+// ====== CONFIGURATION ======
+#define DHTPIN 2                  // DHT11 data pin connected to D2
+#define DHTTYPE DHT11
+
+#define LED_PIN 5
+#define SENSOR_ID_TEMP 1
+#define SENSOR_ID_LED 2
+#define BAUD_RATE 9600
 // ====== END CONFIGURATION ======
+
+DHT dht(DHTPIN, DHTTYPE);
 
 void setup() {
   Serial.begin(BAUD_RATE);
   pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW);  // Start with LED off
+  digitalWrite(LED_PIN, LOW);
+
+  dht.begin();
 }
 
 void loop() {
-  // ===== SEND MEASUREMENTS =====
-  // Read temperature sensor every 5 seconds
   static unsigned long lastTempRead = 0;
+
+  // ===== SEND MEASUREMENTS =====
   if (millis() - lastTempRead >= 5000) {
-    int rawValue = analogRead(TEMP_SENSOR_PIN);
-    float voltage = rawValue * (5.0 / 1023.0);
-    float celsius = (voltage - 0.5) * 100;  // For LM35 sensor; adjust formula for your sensor
-    
-    // Send in protocol format: MEASURE:sensor_id:value
-    Serial.print("MEASURE:");
-    Serial.print(SENSOR_ID_TEMP);
-    Serial.print(":");
-    Serial.println(celsius);  // println adds newline at end
-    
+    float celsius = dht.readTemperature();
+
+    if (!isnan(celsius)) {
+      Serial.print("MEASURE:");
+      Serial.print(SENSOR_ID_TEMP);
+      Serial.print(":");
+      Serial.println(celsius);
+    } else {
+      Serial.println("ERROR:DHT_READ_FAIL");
+    }
+
     lastTempRead = millis();
   }
-  
+
   // ===== RECEIVE AND EXECUTE COMMANDS =====
-  // Check if any data arrived from the hardware bridge
   if (Serial.available() > 0) {
-    String command = Serial.readStringUntil('\n');  // Read until newline
-    
+    String command = Serial.readStringUntil('\n');
+
     if (command.startsWith("COMMAND:")) {
-      // Parse command format: COMMAND:sensor_id:action
       int firstColon = command.indexOf(':');
       int secondColon = command.indexOf(':', firstColon + 1);
-      
+
       int sensorId = command.substring(firstColon + 1, secondColon).toInt();
       String action = command.substring(secondColon + 1);
-      
-      // If command is for the LED, execute it
+
       if (sensorId == SENSOR_ID_LED) {
         if (action == "ON") {
-          digitalWrite(LED_PIN, HIGH);  // Turn on
+          digitalWrite(LED_PIN, HIGH);
         } else if (action == "OFF") {
-          digitalWrite(LED_PIN, LOW);   // Turn off
+          digitalWrite(LED_PIN, LOW);
         }
       }
     }
   }
-  
-  delay(100);  // Small delay to prevent overwhelming the serial buffer
+
+  delay(100);
 }
 ```
 
@@ -257,7 +272,7 @@ void loop() {
 # Linux/Mac: List all serial devices
 ls /dev/tty*
 
-# You'll see something like /dev/ttyUSB0 or /dev/ttyACM0
+# You'll see something like /dev/ttyACM0 or /dev/ttyACM0
 ```
 
 The most recent one is likely your Arduino. If unsure, unplug the Arduino, run the command again, and note what's missing. Plug it back in and note what appeared.
@@ -267,8 +282,8 @@ Test the connection:
 # Install screen if needed
 sudo apt-get install screen
 
-# Connect to your Arduino (replace ttyUSB0 with your port)
-screen /dev/ttyUSB0 9600
+# Connect to your Arduino (replace ttyACM0 with your port)
+screen /dev/ttyACM0 9600
 
 # You should see temperature readings streaming in like:
 # MEASURE:1:23.5
@@ -288,21 +303,21 @@ screen /dev/ttyUSB0 9600
 
 ```bash
 python -m app.hardware.serial_bridge \
-  --port /dev/ttyUSB0 \
+  --port /dev/ttyACM0 \
   --baudrate 9600 \
   --api-url http://localhost:8000 \
   --poll-interval 2.0
 ```
 
 **Parameter explanations:**
-- `--port /dev/ttyUSB0`: Serial port your Arduino is connected to (from Step 5)
+- `--port /dev/ttyACM0`: Serial port your Arduino is connected to (from Step 5)
 - `--baudrate 9600`: Must match your Arduino code (line 11 in the example above)
 - `--api-url http://localhost:8000`: Where the API server is running
 - `--poll-interval 2.0`: Check for pending commands every 2 seconds
 
 **Expected output (should show continuous logging):**
 ```
-2026-06-02 22:00:01 - INFO - app.hardware.serial_bridge - Connected to /dev/ttyUSB0 at 9600 baud
+2026-06-02 22:00:01 - INFO - app.hardware.serial_bridge - Connected to /dev/ttyACM0 at 9600 baud
 2026-06-02 22:00:05 - INFO - app.hardware.serial_bridge - Received from Arduino: MEASURE:1:23.5
 2026-06-02 22:00:05 - INFO - app.hardware.serial_bridge - Stored measurement: temperature_sensor_1=23.5
 ```
@@ -486,7 +501,7 @@ The Arduino receives these messages and executes the corresponding pin operation
 
 ### Problem: Hardware bridge fails to start or can't connect
 
-**Symptoms:** Error message like `Error connecting to /dev/ttyUSB0` or `No such file or directory`
+**Symptoms:** Error message like `Error connecting to /dev/ttyACM0` or `No such file or directory`
 
 **Solutions:**
 1. Verify the port exists:
@@ -518,7 +533,7 @@ The Arduino receives these messages and executes the corresponding pin operation
 **Solutions:**
 1. Verify Arduino is sending data:
    ```bash
-   screen /dev/ttyUSB0 9600
+   screen /dev/ttyACM0 9600
    # Watch for MEASURE messages
    # Exit: Ctrl+A then Ctrl+D
    ```

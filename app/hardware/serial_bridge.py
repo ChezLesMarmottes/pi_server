@@ -29,7 +29,7 @@ class SerialBridge:
 
     def __init__(
         self,
-        port: str = "/dev/ttyUSB0",
+        port: str = "/dev/ttyACM0",
         baudrate: int = 9600,
         api_base_url: str = "http://localhost:8000",
         command_poll_interval: float = 2.0,
@@ -291,7 +291,7 @@ def main() -> None:
     )
 
     parser = argparse.ArgumentParser(description="Hardware bridge for Arduino communication")
-    parser.add_argument("--port", default="/dev/ttyUSB0", help="Serial port (default: /dev/ttyUSB0)")
+    parser.add_argument("--port", default="/dev/ttyACM0", help="Serial port (default: /dev/ttyACM0)")
     parser.add_argument("--baudrate", type=int, default=9600, help="Baud rate (default: 9600)")
     parser.add_argument("--api-url", default="http://localhost:8000", help="API base URL")
     parser.add_argument("--poll-interval", type=float, default=2.0, help="Command poll interval in seconds")
