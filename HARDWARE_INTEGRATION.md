@@ -64,10 +64,10 @@ The API is now running and listening for HTTP requests on `http://localhost:8000
 **How to do it:** Open a new terminal and run these commands (replace sensor names with yours):
 
 ```bash
-# Create a temperature sensor (DHT11)
+# Create a temperature sensor (DHT22)
 curl -X POST http://localhost:8000/sensors \
   -H "Content-Type: application/json" \
-  -d '{"name": "temperature_dht11_1", "state": "OFF"}'
+  -d '{"name": "temperature_dht22_1", "state": "OFF"}'
 ```
 
 **Expected response:**
@@ -103,7 +103,7 @@ Expected response:
 
 **Common sensors:**
 
-* Temperature sensor → `"name": "temperature_dht11_1"`
+* Temperature sensor → `"name": "temperature_dht22_1"`
 * LED → `"name": "led_1"`
 * Motion sensor → `"name": "motion_detector"`
 * Fan → `"name": "cooling_fan"`
@@ -123,12 +123,12 @@ Expected response:
 **How to do it:** For each sensor, create a hardware config entry using its ID from Step 2:
 
 ```bash
-# Example: temperature_dht11_1 (id=1) is connected to pin D2 (digital), read every 5 seconds
+# Example: temperature_dht22_1 (id=1) is connected to pin D2 (digital), read every 5 seconds
 curl -X POST http://localhost:8000/hardware \
   -H "Content-Type: application/json" \
   -d '{
     "sensor_id": 1,
-    "arduino_pin": "D2",
+    "arduino_pin": "7",
     "pin_type": "digital",
     "read_interval_ms": 5000
   }'
@@ -146,7 +146,7 @@ curl -X POST http://localhost:8000/hardware \
 
 **Field explanations:**
 
-* `sensor_id`: The ID from Step 2 (e.g., `1` for temperature_dht11_1)
+* `sensor_id`: The ID from Step 2 (e.g., `1` for temperature_dht22_1)
 * `arduino_pin`: The physical Arduino pin (A0-A5 for analog, D0-D53 for digital on Mega)
 * `pin_type`: Either `"analog"` or `"digital"`
 * `read_interval_ms`: How often to read this pin in milliseconds (1000 = 1 second, 5000 = 5 seconds)
@@ -159,7 +159,7 @@ curl -X POST http://localhost:8000/hardware \
   -H "Content-Type: application/json" \
   -d '{
     "sensor_id": 2,
-    "arduino_pin": "D5",
+    "arduino_pin": "5",
     "pin_type": "digital",
     "read_interval_ms": 1000
   }'
@@ -191,8 +191,8 @@ You should see both configs listed.
 #include "DHT.h"
 
 // ====== CONFIGURATION ======
-#define DHTPIN 2                  // DHT11 data pin connected to D2
-#define DHTTYPE DHT11
+#define DHTPIN 7                  // DHT22 data pin connected to D2
+#define DHTTYPE DHT22
 
 #define LED_PIN 5
 #define SENSOR_ID_TEMP 1
@@ -735,7 +735,7 @@ curl -X POST http://localhost:8000/hardware \
 - **Hardware bridge poll interval:** Lower = faster command response, but more API requests. Default 2 seconds is reasonable.
 - **Arduino read interval:** Lower = more frequent measurements, but uses more serial bandwidth and CPU. 5 seconds for temperature is typical.
 - **Serial baud rate:** Higher = faster communication (115200 is fast but requires reliable connection). 9600 is safe for most setups.
-- **Number of sensors:** Each sensor adds one line per read interval. With 10 sensors at 5 second intervals, that's 2 messages per second—well within serial capacity.
+- **Number of sensors:** Each sensor adds one line per read interval. With 10 sensors at 5 second intervals, that's 2 messages per second — well within serial capacity.
 
 ---
 
